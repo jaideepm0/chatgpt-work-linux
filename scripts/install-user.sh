@@ -59,8 +59,8 @@ cleanup_paths=(
   "$base/.current-new-$$"
   "$base/.previous-new-$$"
   "$bin_dir/.chatgpt-work-linux-new-$$"
-  "$desktop_dir/.chatgpt-work-linux.desktop-new-$$"
-  "$icon_dir/.chatgpt-work-linux.svg-new-$$"
+  "$desktop_dir/.io.github.chatgpt_work_linux.desktop-new-$$"
+  "$icon_dir/.io.github.chatgpt_work_linux.svg-new-$$"
   "$metainfo_dir/.io.github.chatgpt_work_linux.metainfo.xml-new-$$"
 )
 cleanup() {
@@ -96,10 +96,10 @@ if [[ ! -e $final ]]; then
   fi
   install -Dm644 "$repo_root/docs/validation-report.md" \
     "$stage/share/doc/chatgpt-work-linux/validation-report.md"
-  install -Dm644 "$repo_root/packaging/linux/chatgpt-work-linux.desktop" \
-    "$stage/share/applications/chatgpt-work-linux.desktop"
+  install -Dm644 "$repo_root/packaging/linux/io.github.chatgpt_work_linux.desktop" \
+    "$stage/share/applications/io.github.chatgpt_work_linux.desktop"
   install -Dm644 "$repo_root/assets/chatgpt-work-linux.svg" \
-    "$stage/share/icons/hicolor/scalable/apps/chatgpt-work-linux.svg"
+    "$stage/share/icons/hicolor/scalable/apps/io.github.chatgpt_work_linux.svg"
   install -Dm644 "$repo_root/packaging/linux/io.github.chatgpt_work_linux.metainfo.xml" \
     "$stage/share/metainfo/io.github.chatgpt_work_linux.metainfo.xml"
   install -Dm644 "$repo_root/LICENSE" "$stage/share/licenses/chatgpt-work-linux/LICENSE"
@@ -116,7 +116,7 @@ elif ! verify_release "$final"; then
   exit 1
 fi
 
-desktop-file-validate "$final/share/applications/chatgpt-work-linux.desktop"
+desktop-file-validate "$final/share/applications/io.github.chatgpt_work_linux.desktop"
 appstreamcli validate --no-net "$final/share/metainfo/io.github.chatgpt_work_linux.metainfo.xml" >/dev/null
 
 publish_file() {
@@ -128,13 +128,15 @@ publish_file() {
 # Publish version-independent integration files first. Existing launches still
 # resolve through the unchanged current symlink until the final switch below.
 publish_file \
-  "$final/share/applications/chatgpt-work-linux.desktop" \
-  "$desktop_dir/chatgpt-work-linux.desktop" 0644 \
-  "$desktop_dir/.chatgpt-work-linux.desktop-new-$$"
+  "$final/share/applications/io.github.chatgpt_work_linux.desktop" \
+  "$desktop_dir/io.github.chatgpt_work_linux.desktop" 0644 \
+  "$desktop_dir/.io.github.chatgpt_work_linux.desktop-new-$$"
+rm -f -- "$desktop_dir/chatgpt-work-linux.desktop"
 publish_file \
-  "$final/share/icons/hicolor/scalable/apps/chatgpt-work-linux.svg" \
-  "$icon_dir/chatgpt-work-linux.svg" 0644 \
-  "$icon_dir/.chatgpt-work-linux.svg-new-$$"
+  "$final/share/icons/hicolor/scalable/apps/io.github.chatgpt_work_linux.svg" \
+  "$icon_dir/io.github.chatgpt_work_linux.svg" 0644 \
+  "$icon_dir/.io.github.chatgpt_work_linux.svg-new-$$"
+rm -f -- "$icon_dir/chatgpt-work-linux.svg"
 publish_file \
   "$final/share/metainfo/io.github.chatgpt_work_linux.metainfo.xml" \
   "$metainfo_dir/io.github.chatgpt_work_linux.metainfo.xml" 0644 \

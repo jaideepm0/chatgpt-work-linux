@@ -18,7 +18,7 @@
       artwork.
     </p>
   </description>
-  <launchable type="desktop-id">chatgpt-work-linux.desktop</launchable>
+  <launchable type="desktop-id">io.github.chatgpt_work_linux.desktop</launchable>
   <provides>
     <binary>chatgpt-work-linux</binary>
   </provides>
@@ -28,7 +28,7 @@
   <url type="homepage">https://chatgpt.com/work/</url>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.1.0" date="2026-07-09">
+    <release version="0.1.0" date="2026-07-10">
       <description>
         <p>Initial native Linux architecture and packaging.</p>
       </description>

@@ -66,6 +66,25 @@ Systemd recorded 1.614 seconds of CPU across 13.640 seconds wall time and a
   reported a healthy Wayland runtime, both KDE portals, and installed Google
   Chrome and Microsoft Edge compatibility candidates.
 
+## Flatpak roadmap target
+
+- GNOME Platform/SDK 50 and the stable Rust 25.08 extension were installed from
+  Flathub. Flatpak Builder fetched every locked crate by recorded SHA-256 and
+  completed the application build with Cargo `--frozen`.
+- AppStream composition succeeded and exported commit
+  `23549e0dd0b7408f7c28619e611016e3615d0eedacfd432f2510ee9e4300792f`.
+- The locally installable Flatpak bundle is approximately 1.3 MiB excluding
+  the shared runtime.
+- Installed permissions contain only `ipc`, `network`, Wayland,
+  fallback-X11, PulseAudio, DRI, and `xdg-download`. There is no host/home
+  filesystem, host spawn, broad bus, or input-device grant.
+- Flatpak `doctor --json` reported a healthy GNOME 50 runtime on the KDE
+  Wayland host, WebKitGTK 2.52.4, both portals, `flatpak_sandbox=true`, and no
+  Chromium candidate inside the sandbox.
+- A non-default Flatpak profile acquired its filtered D-Bus sub-name, loaded a
+  real HTTPS page, forwarded a companion invocation in 99 ms, and exited
+  cleanly through the exported native quit action.
+
 ## Remaining interactive release matrix
 
 The production target has passed the native Wayland lifecycle and constrained

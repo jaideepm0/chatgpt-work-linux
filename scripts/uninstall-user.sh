@@ -26,7 +26,9 @@ fi
 rm -f -- \
   "$prefix/bin/chatgpt-work-linux" \
   "$prefix/share/applications/chatgpt-work-linux.desktop" \
+  "$prefix/share/applications/io.github.chatgpt_work_linux.desktop" \
   "$prefix/share/icons/hicolor/scalable/apps/chatgpt-work-linux.svg" \
+  "$prefix/share/icons/hicolor/scalable/apps/io.github.chatgpt_work_linux.svg" \
   "$prefix/share/metainfo/io.github.chatgpt_work_linux.metainfo.xml"
 rm -rf -- "$prefix/opt/chatgpt-work-linux"
 

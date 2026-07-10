@@ -14,6 +14,7 @@ pub struct DoctorReport {
     pub application_version: String,
     pub operating_system: String,
     pub architecture: String,
+    pub flatpak_sandbox: bool,
     pub session_type: Option<String>,
     pub desktop: Option<String>,
     pub gtk_version: Option<String>,
@@ -92,6 +93,7 @@ impl DoctorReport {
             application_version: crate::VERSION.to_owned(),
             operating_system: os_pretty_name(),
             architecture: env::consts::ARCH.to_owned(),
+            flatpak_sandbox: crate::is_flatpak_sandbox(),
             session_type: env::var("XDG_SESSION_TYPE").ok(),
             desktop: env::var("XDG_CURRENT_DESKTOP").ok(),
             gtk_version,
@@ -115,11 +117,12 @@ impl DoctorReport {
             self.warnings.join("; ")
         };
         format!(
-            "chatgpt-work-linux {}\nstatus: {}\nos: {} ({})\nsession: {} / {}\nGTK: {}\nWebKitGTK: {}\nChromium: {}\nportal: {}\nprofile: {}\nengine: {:?}\nconfig: {}\ndata: {}\ncache: {}\nwarnings: {}",
+            "chatgpt-work-linux {}\nstatus: {}\nos: {} ({})\nFlatpak: {}\nsession: {} / {}\nGTK: {}\nWebKitGTK: {}\nChromium: {}\nportal: {}\nprofile: {}\nengine: {:?}\nconfig: {}\ndata: {}\ncache: {}\nwarnings: {}",
             self.application_version,
             if self.healthy { "healthy" } else { "degraded" },
             self.operating_system,
             self.architecture,
+            if self.flatpak_sandbox { "yes" } else { "no" },
             self.session_type.as_deref().unwrap_or("unknown"),
             self.desktop.as_deref().unwrap_or("unknown"),
             self.gtk_version.as_deref().unwrap_or("not found"),

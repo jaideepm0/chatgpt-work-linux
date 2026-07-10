@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := build
 
-.PHONY: build check clean doctor install-user package-pacman run test uninstall-user
+.PHONY: build check clean doctor install-user package-flatpak package-pacman run test uninstall-user
 
 build:
 	env PATH=/usr/bin:/bin \
@@ -23,11 +23,16 @@ check:
 	env PATH=/usr/bin:/bin cargo clippy --workspace --all-targets --locked -- -D warnings
 	$(MAKE) test
 	bash -n scripts/*.sh
-	desktop-file-validate packaging/linux/chatgpt-work-linux.desktop
+	desktop-file-validate packaging/linux/io.github.chatgpt_work_linux.desktop
+	desktop-file-validate packaging/flatpak/io.github.chatgpt_work_linux.desktop
 	appstreamcli validate --pedantic packaging/linux/io.github.chatgpt_work_linux.metainfo.xml
+	flatpak-builder --show-manifest packaging/flatpak/io.github.chatgpt_work_linux.yml >/dev/null
 
 package-pacman:
 	bash scripts/build-pacman.sh
+
+package-flatpak:
+	bash scripts/build-flatpak.sh
 
 install-user:
 	bash scripts/install-user.sh

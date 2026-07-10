@@ -26,7 +26,7 @@ use webkit2gtk::{
 };
 
 use crate::{
-    APP_NAME, DEFAULT_START_URL,
+    APP_ID_BASE, APP_NAME, DEFAULT_START_URL,
     capture::request_interactive_screenshot,
     cli::Cli,
     config::{Config, PerformancePreset, PermissionPolicy, RuntimeEngine},
@@ -380,7 +380,7 @@ impl GuiState {
             .default_width(default_width)
             .default_height(default_height)
             .build();
-        window.set_icon_name(Some("chatgpt-work-linux"));
+        window.set_icon_name(Some(APP_ID_BASE));
         if role == WindowRole::Companion {
             apply_companion_layout(&window);
         }
@@ -643,7 +643,7 @@ impl GuiState {
             let notification = gio::Notification::new("ChatGPT Work notification");
             notification.set_body(Some("Open chatgpt-work-linux to view it."));
             notification.set_default_action("app.focus");
-            notification.set_icon(&gio::ThemedIcon::new("chatgpt-work-linux"));
+            notification.set_icon(&gio::ThemedIcon::new(APP_ID_BASE));
             application.send_notification(None, &notification);
             true
         });
@@ -896,6 +896,27 @@ impl GuiState {
     }
 
     fn offer_chromium_handoff(self: &Rc<Self>, parent: &gtk::ApplicationWindow, oauth: bool) {
+        if crate::is_flatpak_sandbox() {
+            let dialog = gtk::MessageDialog::new(
+                Some(parent),
+                gtk::DialogFlags::MODAL,
+                gtk::MessageType::Info,
+                gtk::ButtonsType::None,
+                "Google sign-in needs the default browser in Flatpak",
+            );
+            dialog.set_secondary_text(Some(
+                "The Flatpak sandbox intentionally cannot start or read a host Chromium profile. Open ChatGPT in your default browser to use Google sign-in, or close this message and use email sign-in in the app.",
+            ));
+            dialog.add_button("Close", gtk::ResponseType::Cancel);
+            dialog.add_button("Open in Browser", gtk::ResponseType::Accept);
+            let accepted = dialog.run() == gtk::ResponseType::Accept;
+            dialog.close();
+            if accepted && let Err(error) = launch_system_browser(&self.config.general.start_url) {
+                tracing::warn!(%error, "could not open ChatGPT in the default browser");
+                self.show_warning("Could not open ChatGPT in the default browser.");
+            }
+            return;
+        }
         if self.private {
             let dialog = gtk::MessageDialog::new(
                 Some(parent),
@@ -992,7 +1013,7 @@ impl GuiState {
             "Unofficial independent community client for the ChatGPT Work experience on Linux. Not affiliated with or endorsed by OpenAI.",
         ));
         dialog.set_license_type(gtk::License::MitX11);
-        dialog.set_logo_icon_name(Some("chatgpt-work-linux"));
+        dialog.set_logo_icon_name(Some(APP_ID_BASE));
         dialog.run();
         dialog.close();
     }
@@ -1694,7 +1715,7 @@ fn configure_download(download: &Download, downloads_dir: &Path, application: &g
             notification.set_body(Some(&filename));
         }
         notification.set_default_action("app.focus");
-        notification.set_icon(&gio::ThemedIcon::new("chatgpt-work-linux"));
+        notification.set_icon(&gio::ThemedIcon::new(APP_ID_BASE));
         success_app.send_notification(None, &notification);
     });
 
@@ -1706,7 +1727,7 @@ fn configure_download(download: &Download, downloads_dir: &Path, application: &g
         let notification = gio::Notification::new("Download failed");
         notification.set_body(Some("Open chatgpt-work-linux for details."));
         notification.set_default_action("app.focus");
-        notification.set_icon(&gio::ThemedIcon::new("chatgpt-work-linux"));
+        notification.set_icon(&gio::ThemedIcon::new(APP_ID_BASE));
         failure_app.send_notification(None, &notification);
     });
 }

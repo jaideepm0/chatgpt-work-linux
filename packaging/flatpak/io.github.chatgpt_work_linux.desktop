@@ -1,0 +1,27 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=chatgpt-work-linux
+GenericName=AI Work Assistant
+Comment=Community Linux desktop application for the ChatGPT Work web experience
+Exec=chatgpt-work-linux %u
+TryExec=chatgpt-work-linux
+Icon=io.github.chatgpt_work_linux
+Terminal=false
+Categories=Network;Chat;
+Keywords=AI;assistant;chat;work;documents;research;
+StartupNotify=true
+StartupWMClass=io.github.chatgpt_work_linux
+Actions=Companion;SafeMode;Browser;
+
+[Desktop Action Companion]
+Name=Open Companion Window
+Exec=chatgpt-work-linux --companion
+
+[Desktop Action SafeMode]
+Name=Open in Safe Mode
+Exec=chatgpt-work-linux --safe-mode
+
+[Desktop Action Browser]
+Name=Open in Default Browser
+Exec=chatgpt-work-linux --engine browser

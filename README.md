@@ -91,6 +91,19 @@ make package-pacman
 sudo pacman -U dist/chatgpt-work-linux-*.pkg.tar.zst
 ```
 
+Build a least-privilege Flatpak after installing GNOME SDK 50 and the stable
+Rust 25.08 SDK extension:
+
+```bash
+make package-flatpak
+flatpak install --user --reinstall --bundle dist/chatgpt-work-linux-*.flatpak
+```
+
+The [Flatpak sandbox audit](docs/flatpak-sandbox.md) documents every grant and
+the stricter authentication tradeoff. The native Arch/user package remains the
+full compatibility target because Flatpak intentionally cannot spawn or read a
+host Chromium profile.
+
 ## Usage
 
 ```bash
@@ -140,6 +153,7 @@ retrieval is captured as a new observation rather than silently trusted.
 - [Architecture, security, and performance design](docs/architecture.md)
 - [Current upstream snapshot](docs/upstream-snapshot.json)
 - [Current validation evidence](docs/validation-report.md)
+- [Flatpak sandbox audit](docs/flatpak-sandbox.md)
 - [Security policy](SECURITY.md)
 
 ## Known limits

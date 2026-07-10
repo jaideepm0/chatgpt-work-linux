@@ -85,7 +85,7 @@ pub fn launch_chromium(
         .arg(format!("--user-data-dir={}", profile_dir.display()))
         .arg("--no-first-run")
         .arg("--no-default-browser-check")
-        .arg("--class=chatgpt-work-linux")
+        .arg("--class=io.github.chatgpt_work_linux")
         .args(&config.extra_args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())

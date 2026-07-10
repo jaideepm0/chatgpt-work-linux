@@ -94,13 +94,18 @@ Implemented now:
 
 Next release candidates:
 
-1. Flatpak manifest and sandbox permission audit.
-2. KDE Wayland production CI/smoke coverage plus an X11 compatibility lane,
+1. KDE Wayland production CI/smoke coverage plus an X11 compatibility lane,
    with mocked first-party pages, media permission tests, web-process crash
    injection, and resource budgets.
-3. Screenshot/file drag-to-composer support only if a stable browser API makes
+2. Screenshot/file drag-to-composer support only if a stable browser API makes
    it possible without DOM automation.
-4. Explicit IDE integration with context preview, byte/line limits, diff
+3. Explicit IDE integration with context preview, byte/line limits, diff
    approval, and no background accessibility scraping.
-5. Signed package repositories, SBOM, reproducible-build comparison, and
+4. Signed package repositories, SBOM, reproducible-build comparison, and
    release provenance.
+
+Completed after the native baseline:
+
+1. Canonical desktop/portal identity and a least-privilege GNOME 50 Flatpak
+   manifest with locked, checksummed, offline Cargo sources and a documented
+   sandbox/authentication audit.

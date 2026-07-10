@@ -3,15 +3,15 @@ Type=Application
 Version=1.5
 Name=chatgpt-work-linux
 GenericName=AI Work Assistant
-Comment=Community Linux desktop shell for the ChatGPT Work web experience
+Comment=Community Linux desktop application for the ChatGPT Work web experience
 Exec=chatgpt-work-linux %u
 TryExec=chatgpt-work-linux
-Icon=chatgpt-work-linux
+Icon=io.github.chatgpt_work_linux
 Terminal=false
 Categories=Network;Chat;
 Keywords=AI;assistant;chat;work;documents;research;
 StartupNotify=true
-StartupWMClass=chatgpt-work-linux
+StartupWMClass=io.github.chatgpt_work_linux
 Actions=Companion;SafeMode;Chromium;
 
 [Desktop Action Companion]

@@ -25,3 +25,6 @@
 - Keyed package build caches by the full source-archive hash to prevent stale
   outputs when deterministic archive timestamps are reused.
 - Refreshed the official Work-era metadata reference to ChatGPT 1.2026.183.
+- Added a canonical desktop/portal identity and least-privilege GNOME 50
+  Flatpak manifest with checksummed locked Cargo sources, Wayland-first
+  permissions, and a documented sandbox/authentication audit.

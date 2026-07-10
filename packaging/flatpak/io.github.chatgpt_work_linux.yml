@@ -1,0 +1,50 @@
+app-id: io.github.chatgpt_work_linux
+runtime: org.gnome.Platform
+runtime-version: '50'
+sdk: org.gnome.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: chatgpt-work-linux
+
+finish-args:
+  - --share=network
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --device=dri
+  - --filesystem=xdg-download
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  strip: true
+  env:
+    CARGO_HOME: cargo
+    RUSTFLAGS: --remap-path-prefix=/run/build/chatgpt-work-linux=/usr/src/chatgpt-work-linux --remap-path-prefix=/run/build/chatgpt-work-linux/cargo=/usr/src/cargo
+
+modules:
+  - name: chatgpt-work-linux
+    buildsystem: simple
+    build-commands:
+      - cargo build --release --frozen
+      - install -Dm755 target/release/chatgpt-work-linux /app/bin/chatgpt-work-linux
+      - install -Dm644 packaging/flatpak/io.github.chatgpt_work_linux.desktop /app/share/applications/io.github.chatgpt_work_linux.desktop
+      - install -Dm644 assets/chatgpt-work-linux.svg /app/share/icons/hicolor/scalable/apps/io.github.chatgpt_work_linux.svg
+      - install -Dm644 packaging/linux/io.github.chatgpt_work_linux.metainfo.xml /app/share/metainfo/io.github.chatgpt_work_linux.metainfo.xml
+      - install -Dm644 LICENSE /app/share/licenses/chatgpt-work-linux/LICENSE
+      - install -Dm644 config.example.toml /app/share/doc/chatgpt-work-linux/config.example.toml
+      - install -Dm644 docs/architecture.md /app/share/doc/chatgpt-work-linux/architecture.md
+      - install -Dm644 docs/audit-and-improvement-plan.md /app/share/doc/chatgpt-work-linux/audit-and-improvement-plan.md
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .git
+          - .cache
+          - .work
+          - dist
+          - target
+          - ChatGPT.dmg
+          - chatgpt-app
+          - chatgpt-app-next
+      - cargo-sources.json
