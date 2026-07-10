@@ -156,3 +156,7 @@ compatibility build targets.
 - Account flags and service entitlements still control feature availability.
 - A newly isolated profile may perform a large one-time download of OpenAI’s
   Linux primary runtime when an advanced Work feature first needs it.
+
+## Disclamier
+
+- Most work here is done by GPT-5.6 Sol running inside codex-cli hence mostly it's unverified as long as this line exists you should use it at your own discretion. This repo will be updated once verification is done and robust, productionized codebase is out.
