@@ -12,7 +12,7 @@ Host: Arch Linux x86-64, KDE Plasma/KWin, native Wayland
 - APFS extraction completed with nine known safe package-symlink repairs; no
   unsafe archive path was accepted and no Mach-O executable was run.
 - Required patch gate: 12 applied, 5 already applied, zero required failures.
-  Optional core: 33 applied, 10 already applied, 7 explicitly skipped, 4
+  Optional core: 32 applied, 11 already applied, 7 explicitly skipped, 4
   disabled, and 1 target-inapplicable.
 - All 329 general compatibility tests and four exact `26.707` semantic tests
   passed. The preserved Rust baseline passed formatting, Clippy with warnings
@@ -58,9 +58,11 @@ Host: Arch Linux x86-64, KDE Plasma/KWin, native Wayland
 - Visible primary-window `ready-to-show` occurred about 0.5–0.6 seconds after
   Electron startup on a warm cache; launcher preparation was about 0.3–0.8
   seconds after initial plugin staging.
-- Upstream still prewarms hidden home/thread/Quick Chat renderers. A narrower
-  lazy-window patch is required: an attempted global capability disable also
-  suppressed primary startup and was reverted before release.
+- A broad prompt-capability disable suppressed primary startup and was rejected.
+  The final narrow patch keeps prompt/Quick Chat available while removing only
+  their startup-prewarm call. Settled startup now has one renderer instead of
+  primary + three hidden renderers; no hotkey-window lifecycle appeared until
+  explicitly requested.
 - During primary-runtime selection the Electron main process reached roughly
   1.3 GiB RSS and the full tree exceeded the old WebKit shell budget. This is
   substantially heavier than `chatgpt-desktop-linux` and cannot honestly be
@@ -73,8 +75,9 @@ Host: Arch Linux x86-64, KDE Plasma/KWin, native Wayland
 
 ## Installation
 
-- The installed release is
-  `~/.local/opt/chatgpt-work-linux/versions/26.707.31428-aa07183c8e85f80e`.
+- The installed release path is content addressed under
+  `~/.local/opt/chatgpt-work-linux/versions/`; `current` identifies the active
+  checksum and `previous` is retained after upgrades.
 - Every file is covered by `.codex-linux/SHA256SUMS`; verification passed before
   publication and again from the immutable release.
 - `current` was switched atomically and `~/.local/bin/chatgpt-work-linux`
