@@ -89,6 +89,10 @@ Systemd recorded 1.614 seconds of CPU across 13.640 seconds wall time and a
   Wayland, exported the complete action set, and quit cleanly with no remaining
   controller process. Its canonical desktop and icon identities replaced the
   earlier filenames, and `pacman -Qkk` again reported 0 altered files.
+- After Flatpak QA, the test Flatpak application and unsigned local test remote
+  were removed without `--delete-data`. The native Arch desktop entry is the
+  sole active launcher, while Flatpak profile data and installed build runtimes
+  remain available for later regression testing.
 
 ## Remaining interactive release matrix
 
