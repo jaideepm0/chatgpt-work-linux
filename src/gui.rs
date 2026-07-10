@@ -30,7 +30,7 @@ use crate::{
     capture::request_interactive_screenshot,
     cli::Cli,
     config::{Config, PerformancePreset, PermissionPolicy, RuntimeEngine},
-    engine::{ChromiumLaunchOptions, ChromiumProcess, launch_chromium, launch_system_browser},
+    engine::{ChromiumLaunchOptions, launch_chromium, launch_system_browser},
     paths::{AppPaths, ProfileLock},
     policy::{
         NavigationDisposition, PermissionKind, is_allowed_website_data_pair, is_authentication_url,
@@ -67,7 +67,6 @@ struct GuiState {
     shortcut_started: Cell<bool>,
     screenshot_in_flight: Rc<Cell<bool>>,
     runtime_state: RefCell<RuntimeState>,
-    chromium_handoff: RefCell<Option<ChromiumProcess>>,
     private: bool,
     profile: String,
     _profile_lock: ProfileLock,
@@ -220,7 +219,6 @@ impl GuiState {
             shortcut_started: Cell::new(false),
             screenshot_in_flight: Rc::new(Cell::new(false)),
             runtime_state: RefCell::new(runtime_state),
-            chromium_handoff: RefCell::new(None),
             private,
             profile,
             _profile_lock: profile_lock,
@@ -898,7 +896,19 @@ impl GuiState {
     }
 
     fn offer_chromium_handoff(self: &Rc<Self>, parent: &gtk::ApplicationWindow, oauth: bool) {
-        if self.chromium_handoff.borrow().is_some() {
+        if self.private {
+            let dialog = gtk::MessageDialog::new(
+                Some(parent),
+                gtk::DialogFlags::MODAL,
+                gtk::MessageType::Info,
+                gtk::ButtonsType::Close,
+                "Open a private Chromium session from the launcher",
+            );
+            dialog.set_secondary_text(Some(
+                "To keep the temporary browser profile alive without retaining a hidden WebKit engine, close this window and run chatgpt-work-linux --engine chromium --private.",
+            ));
+            dialog.run();
+            dialog.close();
             return;
         }
         let dialog = gtk::MessageDialog::new(
@@ -948,57 +958,18 @@ impl GuiState {
                 ..ChromiumLaunchOptions::default()
             },
         );
-        let process = match process {
-            Ok(process) => process,
+        match process {
+            Ok(process) => drop(process),
             Err(error) => {
                 tracing::warn!(%error, "could not start Chromium compatibility engine");
                 self.show_warning("No compatible Chromium browser could be started. Configure chromium.executable or use email sign-in.");
                 return;
             }
-        };
-        *self.chromium_handoff.borrow_mut() = Some(process);
-        for record in self.windows.borrow().iter() {
-            record.window.hide();
         }
-
-        let weak_state = Rc::downgrade(self);
-        glib::timeout_add_local(Duration::from_millis(500), move || {
-            let Some(state) = weak_state.upgrade() else {
-                return ControlFlow::Break;
-            };
-            let outcome = state
-                .chromium_handoff
-                .borrow_mut()
-                .as_mut()
-                .map(ChromiumProcess::try_wait);
-            match outcome {
-                Some(Ok(Some(status))) if status.success() => {
-                    state.chromium_handoff.borrow_mut().take();
-                    state.application.quit();
-                    ControlFlow::Break
-                }
-                Some(Ok(Some(status))) => {
-                    state.chromium_handoff.borrow_mut().take();
-                    for record in state.windows.borrow().iter() {
-                        record.window.show_all();
-                    }
-                    state.show_warning(&format!(
-                        "Chromium compatibility mode exited unexpectedly ({status})."
-                    ));
-                    ControlFlow::Break
-                }
-                Some(Err(error)) => {
-                    state.chromium_handoff.borrow_mut().take();
-                    tracing::warn!(%error, "could not monitor Chromium compatibility engine");
-                    for record in state.windows.borrow().iter() {
-                        record.window.show_all();
-                    }
-                    state.show_warning("Could not monitor the Chromium compatibility engine.");
-                    ControlFlow::Break
-                }
-                _ => ControlFlow::Continue,
-            }
-        });
+        // A persistent Chromium profile is owned by Chromium itself. Exit the
+        // WebKit controller now so a compatibility handoff never runs two full
+        // rendering engines at once. Child::drop does not terminate the browser.
+        self.application.quit();
     }
 
     fn show_diagnostics_dialog(&self) {

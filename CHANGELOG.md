@@ -14,6 +14,9 @@
   bounded media-capture controls.
 - Added Google OAuth detection with a user-approved isolated Chromium handoff;
   cookies are never copied and browser security remains enabled.
+- Fixed the handoff lifecycle so persistent profiles immediately release the
+  WebKit engine instead of retaining two full renderers; private handoffs give
+  an explicit Chromium-private relaunch path.
 - Added cgroup-aware efficient-mode cache and WebKit memory-pressure policy,
   content-hashed release manifests, checksummed source packaging, and build
   path remapping.
