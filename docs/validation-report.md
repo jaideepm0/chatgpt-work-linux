@@ -82,11 +82,26 @@ Host: Arch Linux x86-64, KDE Plasma/KWin, native Wayland
   publication and again from the immutable release.
 - `current` was switched atomically and `~/.local/bin/chatgpt-work-linux`
   resolves through it. Desktop and AppStream files validate successfully.
+- The launcher now uses `io.github.chatgpt_work_linux` consistently for its
+  Wayland app ID, Chromium class, `CHROME_DESKTOP`, notification hint, desktop
+  filename, and `StartupWMClass`. A live KWin process command line confirmed
+  both `--class=io.github.chatgpt_work_linux` and
+  `--app-id=io.github.chatgpt_work_linux`.
+- Both installed Work and Desktop icon-theme entries are the verified 2048×2048
+  ChatGPT PNG with SHA-256
+  `3453947a9ce2709b7ec51c0559c7eb976e4ac53b232b607d1d81b0d1d1048b61`.
+  The old orange SVGs and obsolete system Work web-shell package were removed,
+  leaving one searchable entry for each product.
+- A reinstall exposed that read-only superseded versions could not be pruned.
+  Cleanup now restores owner write permission only on the stale tree before
+  removal; the retry completed quietly while preserving active and previous
+  rollback releases.
 - `chatgpt-work-linux doctor --json` reports Electron 42.1.0, native Wayland,
   Codex CLI availability, sandbox enabled, `app://` origin, and isolated XDG
   profile state.
-- `chatgpt-desktop-linux` was not changed and remains the separate lightweight
-  public-web application.
+- `chatgpt-desktop-linux` remains the separate lightweight public-web
+  application. Its native package was rebuilt with the same verified current
+  ChatGPT icon and distinct `ChatGPT Desktop Linux (Unofficial)` metadata.
 
 ## Remaining interactive matrix
 
