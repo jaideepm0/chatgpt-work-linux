@@ -48,8 +48,8 @@ node "$compat_root/scripts/ci/validate-patch-report.js" \
 cmp -s "$repo_root/assets/chatgpt-work-linux.png" \
   "$stage/.codex-linux/app-icon.png" || fail 'application icon mismatch'
 
-if rg -n -- '--no-sandbox|--disable-gpu-sandbox' "$stage/start.sh" >/dev/null; then
-  fail 'launcher contains a sandbox-disable switch'
+if rg -n -- '--no-sandbox|--disable-gpu-sandbox|webview-server\.py' "$stage/start.sh" >/dev/null; then
+  fail 'launcher contains a forbidden sandbox or loopback-renderer path'
 fi
 rg -q 'unset ELECTRON_RENDERER_URL' "$stage/start.sh" ||
   fail 'launcher does not enforce the packaged app:// renderer'
