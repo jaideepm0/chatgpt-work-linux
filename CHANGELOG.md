@@ -1,0 +1,20 @@
+# Changelog
+
+## 0.1.0 - 2026-07-10
+
+- Added the native Rust/GTK/WebKitGTK runtime with Chromium/browser fallbacks.
+- Added strict navigation and permission mediation, isolated profiles, native
+  downloads/notifications, companion mode, crash backoff, and safe mode.
+- Added XDG portal global shortcuts and screenshot-to-clipboard integration.
+- Added bounded official-artifact provenance tooling and a verified snapshot.
+- Added atomic user-local installation, Arch packaging, desktop metadata,
+  tests, architecture documentation, and security guidance.
+- Added standard compositor decorations and native menus, settings,
+  diagnostics, profile window state, strict cross-site storage prompts, and
+  bounded media-capture controls.
+- Added Google OAuth detection with a user-approved isolated Chromium handoff;
+  cookies are never copied and browser security remains enabled.
+- Added cgroup-aware efficient-mode cache and WebKit memory-pressure policy,
+  content-hashed release manifests, checksummed source packaging, and build
+  path remapping.
+- Refreshed the official Work-era metadata reference to ChatGPT 1.2026.183.

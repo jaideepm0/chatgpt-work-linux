@@ -1,0 +1,173 @@
+{
+  "application": {
+    "all_binary_architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "app_archive_path": "ChatGPT Installer/ChatGPT.app",
+    "architectures": [
+      "arm64"
+    ],
+    "build_timestamp": "1783607958",
+    "bundle_identifier": "com.openai.chat",
+    "bundle_version": "1783607847",
+    "commit_hash": "3dab2ed0d5",
+    "display_name": "ChatGPT",
+    "electron_markers": [],
+    "implementation": "native-macos",
+    "main_executable": "Contents/MacOS/ChatGPT",
+    "minimum_system_version": "14.0",
+    "native_markers": [
+      "ChatGPT.framework",
+      "Mach-O",
+      "Swift runtime"
+    ],
+    "short_version": "1.2026.183",
+    "sparkle_public_key": "IktUdD7h3A+E0F0nYHibnVnGZ7ZgdyTHAi4C6tLo/0c=",
+    "supported_platforms": [
+      "MacOSX"
+    ],
+    "url_schemes": [
+      "chatgpt",
+      "com.openai.chat",
+      "openai"
+    ]
+  },
+  "artifact": {
+    "archive_format": "dmg",
+    "entry_count": 836,
+    "name": "ChatGPT.dmg",
+    "sha256": "49b33cadd2ec659b76352384f7ebd332a7ec7029663365a9f720f4a251d3b8d1",
+    "size": 78575566
+  },
+  "binaries": [
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "dynamic-library",
+      "path": "Contents/Frameworks/Assets.framework/Versions/A/Assets",
+      "size": 772896
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "dynamic-library",
+      "path": "Contents/Frameworks/ChatGPT.framework/Versions/A/ChatGPT",
+      "size": 114840064
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "dynamic-library",
+      "path": "Contents/Frameworks/LiveKitWebRTC.framework/Versions/A/LiveKitWebRTC",
+      "size": 12366912
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "dynamic-library",
+      "path": "Contents/Frameworks/Lottie.framework/Versions/A/Lottie",
+      "size": 2209680
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "dynamic-library",
+      "path": "Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle",
+      "size": 418352
+    },
+    {
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "bits": "universal",
+      "kind": "universal-binary",
+      "path": "Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app/Contents/MacOS/Updater",
+      "size": 272672
+    },
+    {
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "bits": "universal",
+      "kind": "universal-binary",
+      "path": "Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader",
+      "size": 170384
+    },
+    {
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "bits": "universal",
+      "kind": "universal-binary",
+      "path": "Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer",
+      "size": 222000
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "dynamic-library",
+      "path": "Contents/Frameworks/libswiftCompatibilitySpan.dylib",
+      "size": 54816
+    },
+    {
+      "architectures": [
+        "arm64",
+        "x86_64"
+      ],
+      "bits": "universal",
+      "kind": "universal-binary",
+      "path": "Contents/Frameworks/libwebrtc-audio-processing-2.1.dylib",
+      "size": 2739712
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/MacOS/ChatGPT",
+      "size": 272576
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Resources/ChatGPTHelper",
+      "size": 275056
+    }
+  ],
+  "schema_version": 1,
+  "source": {
+    "http": {
+      "accept_ranges": "bytes",
+      "content_length": 78575566,
+      "content_type": "application/x-apple-diskimage",
+      "etag": "0x8DEDDE5780868AA",
+      "last_modified": "Thu, 09 Jul 2026 18:11:16 GMT"
+    },
+    "url": "https://persistent.oaistatic.com/sidekick/public/ChatGPT.dmg"
+  },
+  "verification": {
+    "archive_test": "passed",
+    "artifact_executed": false,
+    "code_signature": "not-verified-on-linux"
+  }
+}

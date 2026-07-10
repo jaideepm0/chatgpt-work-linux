@@ -1,0 +1,27 @@
+[general]
+start_url = "https://chatgpt.com/"
+engine = "auto" # auto, webkit, chromium, or browser
+width = 1180
+height = 820
+close_to_background = false
+
+[performance]
+preset = "auto" # auto, efficient, balanced, or quality
+reduce_motion = false
+page_cache = true
+
+[privacy]
+microphone = "ask"
+camera = "ask"
+display_capture = "ask"
+geolocation = "deny"
+notifications = "ask"
+website_data = "ask"
+
+[shortcuts]
+enabled = true
+preferred_trigger = "CTRL+ALT+space"
+
+[chromium]
+# executable = "/usr/bin/google-chrome-stable"
+extra_args = []

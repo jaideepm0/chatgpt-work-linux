@@ -1,0 +1,21 @@
+# Upstream proprietary artifacts and generated application trees
+ChatGPT.dmg
+chatgpt-app/
+chatgpt-app-next/
+
+# Download, extraction, build, and package caches
+.cache/
+.work/
+dist/
+target/
+node_modules/
+
+# Local build configuration and reports
+config.local.toml
+*.local.json
+*.log
+
+# Editor and OS noise
+.DS_Store
+*.swp
+*~

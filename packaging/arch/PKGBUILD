@@ -1,0 +1,56 @@
+pkgname=chatgpt-work-linux
+pkgver=@PKGVER@
+pkgrel=1
+pkgdesc='Community Linux desktop shell for the ChatGPT Work web experience'
+arch=('x86_64')
+license=('MIT')
+depends=('gtk3' 'webkit2gtk-4.1' 'xdg-desktop-portal')
+optdepends=(
+  'xdg-desktop-portal-gtk: GTK portal fallback'
+  'xdg-desktop-portal-kde: KDE global-shortcut and screenshot portals'
+  'google-chrome: Chromium compatibility engine'
+  'chromium: Chromium compatibility engine'
+)
+makedepends=('cargo')
+provides=('chatgpt-work-linux')
+options=('!debug' 'strip')
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('@SOURCE_SHA256@')
+
+build() {
+  cd "$srcdir/$pkgname-$pkgver"
+  env \
+    CARGO_TARGET_DIR="$srcdir/target" \
+    RUSTFLAGS="--remap-path-prefix=$srcdir/$pkgname-$pkgver=/usr/src/debug/$pkgname" \
+    cargo build --release --frozen
+}
+
+check() {
+  cd "$srcdir/$pkgname-$pkgver"
+  env CARGO_TARGET_DIR="$srcdir/target" cargo test --frozen
+}
+
+package() {
+  local root="$srcdir/$pkgname-$pkgver"
+  install -Dm755 "$srcdir/target/release/chatgpt-work-linux" \
+    "$pkgdir/usr/bin/chatgpt-work-linux"
+  install -Dm644 "$root/assets/chatgpt-work-linux.svg" \
+    "$pkgdir/usr/share/icons/hicolor/scalable/apps/chatgpt-work-linux.svg"
+  install -Dm644 "$root/packaging/linux/chatgpt-work-linux.desktop" \
+    "$pkgdir/usr/share/applications/chatgpt-work-linux.desktop"
+  install -Dm644 "$root/packaging/linux/io.github.chatgpt_work_linux.metainfo.xml" \
+    "$pkgdir/usr/share/metainfo/io.github.chatgpt_work_linux.metainfo.xml"
+  install -Dm755 "$root/scripts/inspect-upstream.py" \
+    "$pkgdir/usr/lib/chatgpt-work-linux/inspect-upstream.py"
+  install -Dm644 "$root/config.example.toml" \
+    "$pkgdir/usr/share/doc/chatgpt-work-linux/config.example.toml"
+  install -Dm644 "$root/docs/architecture.md" \
+    "$pkgdir/usr/share/doc/chatgpt-work-linux/architecture.md"
+  install -Dm644 "$root/docs/audit-and-improvement-plan.md" \
+    "$pkgdir/usr/share/doc/chatgpt-work-linux/audit-and-improvement-plan.md"
+  install -Dm644 "$root/docs/codex-desktop-linux-review.md" \
+    "$pkgdir/usr/share/doc/chatgpt-work-linux/codex-desktop-linux-review.md"
+  install -Dm644 "$root/docs/upstream-snapshot.json" \
+    "$pkgdir/usr/share/doc/chatgpt-work-linux/upstream-snapshot.json"
+  install -Dm644 "$root/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
