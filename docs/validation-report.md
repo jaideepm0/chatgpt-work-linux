@@ -27,7 +27,7 @@ Host: Arch Linux x86_64, KDE Plasma/KWin Wayland
 - The reusable `scripts/smoke-wayland.sh` gate launched the final installed
   binary with `GDK_BACKEND=wayland` and `DISPLAY` removed, verified both WebKit
   subprocesses and the exact private profile GApplication name, forwarded
-  hide/show commands in 183/110 ms, and found no process left after shutdown.
+  hide/show commands in 44/49 ms, and found no process left after shutdown.
 
 ## Compatibility and authentication
 
@@ -57,8 +57,8 @@ Systemd recorded 1.614 seconds of CPU across 13.640 seconds wall time and a
 - The Arch package was built from a deterministic checksummed source archive
   with Cargo `--frozen`; the build cache is keyed by that complete source hash.
 - Package SHA-256:
-  `c81d2453f95dfa2bf119161f62c4805661b3e9d365f6cd041f6516438534cac9`.
-- Compressed size: 1,779,227 bytes. Installed size: 3.96 MiB.
+  `03e5ffc440363562c604bd6270f9aefd92ad16ee103a1e31a57d8f369090b324`.
+- Compressed size: 1,804,534 bytes. Installed size: 4.17 MiB.
 - The stripped PIE targets generic x86-64/Linux 4.4 and contains no detected
   workspace, Cargo-home, or Rustup-home path.
 - The package contains the binary, desktop entry, scalable icon, AppStream
@@ -67,7 +67,10 @@ Systemd recorded 1.614 seconds of CPU across 13.640 seconds wall time and a
 - The scalable icon decodes byte-for-byte to the official 256×256 ChatGPT app
   icon recorded in `assets/ICON-PROVENANCE.md`; its PNG SHA-256 is
   `3ebd6f89738f9528fde0a74d6ad4c0a0c776f554cf72a47de302389e8240d83f`.
-- `pacman -Qkk chatgpt-work-linux` reported 28 files and 0 altered files after
+- The package includes a deterministic CycloneDX 1.5 inventory with 180
+  components and 181 dependency relationships. Its canonical root is
+  `/usr/src/chatgpt-work-linux`; no host checkout or package-build path remains.
+- `pacman -Qkk chatgpt-work-linux` reported 29 files and 0 altered files after
   installation.
 - `/usr/bin/chatgpt-work-linux doctor --json` completed without a panic and
   reported a healthy Wayland runtime, both KDE portals, and installed Google
