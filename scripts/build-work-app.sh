@@ -29,6 +29,7 @@ rm -rf -- "$stage"
 
 printf 'Building ChatGPT Work 26.707.31428 from verified local input...\n' >&2
 CODEX_APP_ID=chatgpt-work-linux \
+CODEX_DESKTOP_ID=io.github.chatgpt_work_linux \
 CODEX_APP_DISPLAY_NAME='ChatGPT Work Linux (Unofficial)' \
 CODEX_INSTALL_DIR="$stage" \
 CODEX_LINUX_ICON_SOURCE="$repo_root/assets/chatgpt-work-linux.png" \
@@ -55,6 +56,8 @@ rg -q 'unset ELECTRON_RENDERER_URL' "$stage/start.sh" ||
   fail 'launcher does not enforce the packaged app:// renderer'
 rg -q 'CODEX_LINUX_EXECUTABLE_NAME=chatgpt-work-linux-bin' "$stage/start.sh" ||
   fail 'Electron will not identify this as a packaged application'
+rg -q 'CODEX_LINUX_DESKTOP_ID=io.github.chatgpt_work_linux' "$stage/start.sh" ||
+  fail 'Wayland and freedesktop desktop identities do not match'
 
 # Build headers and package managers are unnecessary after native modules are
 # compiled. Browser-use only needs the pinned Node executable and node_repl.

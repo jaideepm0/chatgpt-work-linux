@@ -11,7 +11,7 @@ Terminal=false
 Categories=Network;Chat;
 Keywords=AI;assistant;chat;work;documents;research;
 StartupNotify=true
-StartupWMClass=chatgpt-work-linux
+StartupWMClass=io.github.chatgpt_work_linux
 MimeType=x-scheme-handler/codex;
 Actions=NewChat;QuickChat;SafeMode;
 

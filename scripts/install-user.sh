@@ -87,6 +87,9 @@ publish_file "$repo_root/packaging/linux/io.github.chatgpt_work_linux.desktop" \
 publish_file "$repo_root/assets/chatgpt-work-linux.png" \
   "$icon_dir/io.github.chatgpt_work_linux.png" 0644 \
   "$icon_dir/.io.github.chatgpt_work_linux.png-new-$$"
+rm -f -- \
+  "$prefix/share/icons/hicolor/scalable/apps/io.github.chatgpt_work_linux.svg" \
+  "$prefix/share/icons/hicolor/scalable/apps/chatgpt-work-linux.svg"
 publish_file "$repo_root/packaging/linux/io.github.chatgpt_work_linux.metainfo.xml" \
   "$metainfo_dir/io.github.chatgpt_work_linux.metainfo.xml" 0644 \
   "$metainfo_dir/.io.github.chatgpt_work_linux.metainfo.xml-new-$$"

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Version=1.5
-Name=chatgpt-work-linux (Unofficial)
+Name=ChatGPT Work Linux (Unofficial)
 GenericName=AI Work Assistant
 Comment=Unofficial community Linux desktop application for ChatGPT Work
 Exec=chatgpt-work-linux %u

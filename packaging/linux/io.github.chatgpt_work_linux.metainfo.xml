@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>io.github.chatgpt_work_linux</id>
-  <name>chatgpt-work-linux (Unofficial)</name>
+  <name>ChatGPT Work Linux (Unofficial)</name>
   <summary>Community Linux compatibility build for the unified ChatGPT Work application</summary>
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
