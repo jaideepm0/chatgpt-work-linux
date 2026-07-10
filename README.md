@@ -40,8 +40,9 @@ from the supplied artifact. Its hash and trademark disclaimer are recorded in
 - Native Wayland/Ozone is selected automatically on KDE Wayland; X11 is not
   required. KWin supplies the standard titlebar and window controls.
 - Electron identifies as packaged and uses its privileged, secure `app://`
-  renderer. There is no Python server, localhost port, or duplicated extracted
-  webview in the installed runtime.
+  renderer. There is no Python server or localhost port. The current upstream
+  protocol resolver requires both its embedded and staged renderer layouts;
+  both are retained until an exact resolver patch can remove one safely.
 - Chromium renderer and GPU sandboxes stay enabled. The launcher never adds
   `--no-sandbox` or disables TLS/web security.
 - ChatGPT Work owns isolated XDG profile, browser, cache, and state paths. An

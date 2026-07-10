@@ -35,7 +35,7 @@ failures. Optional drift remains reported rather than guessed.
 | P1 | Hidden prompt/home/thread/Quick Chat windows were prewarmed. | Linux defaults to lazy prompt-window creation unless the user explicitly enables it. |
 | P1 | File logs grew without a bound. | stderr/journald is default; the opt-in launcher file rotates at 4 MiB with one predecessor. |
 | P1 | Wayland auto mode disabled GPU compositing or fell back to X11. | KDE Wayland selects native Ozone/Wayland with GPU; safe mode remains on Wayland and disables GPU only for recovery. |
-| P1 | Installed image duplicated the ~189 MiB renderer and retained ~84 MiB of Node build material. | Duplicate renderer/server, Node headers, npm, Corepack, and build documentation are absent from production output. |
+| P1 | Installed image retained ~84 MiB of Node build material and served a staged renderer over localhost. | Node headers, npm, Corepack, build documentation, Python server, and TCP listener are absent. The embedded/staged renderer duplication is retained because an exact test proved that `26.707` resolves assets from both layouts. |
 | P1 | Active installs could be deleted before a replacement was known-good. | User installs are checksummed, immutable, content-addressed, atomically switched, and retain one previous release. |
 
 ## Current acceptance gates
@@ -76,6 +76,8 @@ Every release must pass:
   Rust supervisor while preserving the audited argument and recovery behavior.
 - Make bundled plugin synchronization version-marker based and fully atomic so
   unchanged cold starts perform no recursive copies.
+- Patch and test the `app://` asset resolver so the ~189 MiB renderer can be
+  stored once; never remove either current layout without a complete UI smoke.
 - Add renderer/app-server crash injection with bounded restart backoff and
   process-group cleanup assertions.
 - Record cold/warm start latency, PSS/RSS, renderer count, GPU memory, idle CPU,

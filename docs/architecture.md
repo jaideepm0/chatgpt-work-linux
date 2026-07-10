@@ -83,8 +83,10 @@ portals where supported. Portal operations remain user initiated.
 The unified Work product is much heavier than the web-shell baseline, but the
 Linux port removes avoidable overhead:
 
-- the ASAR's own `app://` renderer replaces a duplicated ~189 MiB extracted
-  webview and Python loopback server;
+- the staged renderer is loaded through `app://`, eliminating the Python
+  loopback server and TCP listener; the current upstream resolver still needs
+  both embedded and staged asset layouts, so deduplication remains gated on an
+  exact protocol patch;
 - prompt, home, thread, and Quick Chat windows are created lazily instead of
   prewarming three hidden Chromium renderers;
 - recursive 100 ms permission monitoring and 30-second updater polling are

@@ -45,9 +45,6 @@ node "$compat_root/scripts/ci/validate-patch-report.js" \
 [[ -s $stage/resources/app.asar ]] || fail 'patched app.asar is missing'
 [[ -f $stage/content/webview/index.html ]] || fail 'staged app:// renderer is missing'
 [[ ! -e $stage/.codex-linux/webview-server.py ]] || fail 'loopback server was packaged'
-if npx --yes asar list "$stage/resources/app.asar" | rg -q '^/webview/'; then
-  fail 'renderer is duplicated inside app.asar'
-fi
 cmp -s "$repo_root/assets/chatgpt-work-linux.png" \
   "$stage/.codex-linux/app-icon.png" || fail 'application icon mismatch'
 
