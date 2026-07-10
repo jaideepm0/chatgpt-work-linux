@@ -1,12 +1,12 @@
 # Icon provenance
 
-`chatgpt-work-linux.svg` embeds the unmodified 256×256 PNG representation from
-`ChatGPT.app/Contents/Resources/AppIcon.icns` in the official ChatGPT
-`1.2026.183` DMG observed on 2026-07-10.
+`chatgpt-work-linux.png` is the exact 2048×2048 `icon-chatgpt.png` member from
+`ChatGPT.app/Contents/Resources` in the unified ChatGPT `26.707.31428` DMG
+observed locally on 2026-07-10. It is not redrawn, recolored, or generated.
 
-- DMG SHA-256: `49b33cadd2ec659b76352384f7ebd332a7ec7029663365a9f720f4a251d3b8d1`
-- `AppIcon.icns` SHA-256: `6899c38554e58b034e84c43695d3d1f5f2e8109803a67d784022ec4274b0ff1b`
-- embedded PNG SHA-256: `3ebd6f89738f9528fde0a74d6ad4c0a0c776f554cf72a47de302389e8240d83f`
+- DMG size: `561015842` bytes
+- DMG SHA-256: `6f67af7e2f934093ab8afebcec11374d40c8db8f9100fb6620f24155401d8319`
+- `icon-chatgpt.png` SHA-256: `3453947a9ce2709b7ec51c0559c7eb976e4ac53b232b607d1d81b0d1d1048b61`
 
 OpenAI owns this icon and the ChatGPT marks. Its inclusion does not imply that
 this community Linux application is official, endorsed, or supported by

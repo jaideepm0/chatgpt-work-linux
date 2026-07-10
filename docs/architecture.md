@@ -1,5 +1,11 @@
 # Architecture
 
+> **Historical baseline:** this document describes the completed Rust/WebKit
+> public-web client preserved at `rust-webkit-baseline-v0.1.0` and continued as
+> `chatgpt-desktop-linux`. The active architecture for the unified Work product
+> is defined in
+> [unified-electron-assessment.md](unified-electron-assessment.md).
+
 ## Decision summary
 
 `chatgpt-work-linux` is a clean, Wayland-first Linux application, not a

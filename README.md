@@ -1,9 +1,10 @@
 # chatgpt-work-linux
 
-`chatgpt-work-linux` is a lightweight community Linux desktop shell for the
-official ChatGPT web experience, including ChatGPT Work where the signed-in
-account has access. It uses the system WebKitGTK runtime by default and keeps
-Chromium app mode and the system browser as compatibility fallbacks.
+`chatgpt-work-linux` is a community Linux compatibility build for the unified
+ChatGPT Work/Codex desktop application. The project is transitioning from its
+completed Rust/WebKit public-web baseline to the portable Electron application
+plane observed in ChatGPT `26.707.31428`. The preserved public-web client is
+installed independently as `chatgpt-desktop-linux`.
 
 This project is not an OpenAI product and is not endorsed or supported by
 OpenAI. It does not redistribute the official macOS application or use a
@@ -36,14 +37,17 @@ The default desktop shortcut is `Ctrl+Alt+Space`; the desktop portal asks the
 user to approve or change it. On desktops without the Global Shortcuts portal,
 bind `chatgpt-work-linux --toggle` in the desktop's shortcut settings.
 
-## Why the macOS binary is not converted
+## Upstream architecture change
 
-The official download currently serves the Work-capable ChatGPT `1.2026.183`
-(build `1783607847`, commit `3dab2ed0d5`), an Apple Silicon-only native
-Swift/AppKit/SwiftUI application. It has no Electron
-runtime, `app.asar`, or portable web bundle, so the ASAR-rehosting strategy in
-`codex-desktop-linux` does not apply. The exact inspected artifact and its
-provenance are recorded in [docs/upstream-snapshot.json](docs/upstream-snapshot.json).
+The newly supplied official artifact is ChatGPT `26.707.31428` (bundle `5059`),
+a unified Electron 42 application with a portable ASAR, local app-server,
+plugins, skills, browser-use resources, and Work renderer assets. Its exact
+SHA-256 is
+`6f67af7e2f934093ab8afebcec11374d40c8db8f9100fb6620f24155401d8319`.
+The structural inventory is recorded in
+[docs/upstream-snapshot.json](docs/upstream-snapshot.json), and the architecture
+pivot and compatibility gates are documented in
+[docs/unified-electron-assessment.md](docs/unified-electron-assessment.md).
 
 OpenAI's [desktop page](https://chatgpt.com/features/desktop/) offers macOS and
 Windows builds and says the macOS build requires macOS 14+ on Apple Silicon.
@@ -53,11 +57,10 @@ public web surface as the remote product plane while a native Rust controller
 supplies Linux lifecycle, policy, portals, settings, recovery, and packaging.
 It does not translate or patch proprietary application code.
 
-The current official DMG is 78,575,566 bytes compressed and 203,461,632 bytes
-expanded. The 500+ MiB artifact seen beside this repository is the separate
-Codex DMG, not a ChatGPT Work download. The structural Work assessment and
-observed native feature bundles are recorded in
-[docs/work-upstream-assessment.md](docs/work-upstream-assessment.md).
+The current local DMG is 561,015,842 bytes and is byte-identical to the current
+artifact named `Codex.dmg` in the sibling reference checkout. The older 78 MiB
+Swift artifact and the initial web-shell assessment remain useful historical
+evidence, but no longer describe the current Work release.
 
 ## Requirements
 
@@ -175,6 +178,7 @@ retrieval is captured as a new observation rather than silently trusted.
 - [Architecture, security, and performance design](docs/architecture.md)
 - [Current upstream snapshot](docs/upstream-snapshot.json)
 - [ChatGPT Work upstream assessment](docs/work-upstream-assessment.md)
+- [Unified Electron artifact and architecture assessment](docs/unified-electron-assessment.md)
 - [Current validation evidence](docs/validation-report.md)
 - [Flatpak sandbox audit](docs/flatpak-sandbox.md)
 - [Security policy](SECURITY.md)

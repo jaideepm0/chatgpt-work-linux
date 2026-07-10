@@ -45,8 +45,8 @@ package() {
   local cargo_target="${CARGO_TARGET_DIR:-$srcdir/target}"
   install -Dm755 "$cargo_target/release/chatgpt-work-linux" \
     "$pkgdir/usr/bin/chatgpt-work-linux"
-  install -Dm644 "$root/assets/chatgpt-work-linux.svg" \
-    "$pkgdir/usr/share/icons/hicolor/scalable/apps/io.github.chatgpt_work_linux.svg"
+  install -Dm644 "$root/assets/chatgpt-work-linux.png" \
+    "$pkgdir/usr/share/icons/hicolor/2048x2048/apps/io.github.chatgpt_work_linux.png"
   install -Dm644 "$root/packaging/linux/io.github.chatgpt_work_linux.desktop" \
     "$pkgdir/usr/share/applications/io.github.chatgpt_work_linux.desktop"
   install -Dm644 "$root/packaging/linux/io.github.chatgpt_work_linux.metainfo.xml" \
@@ -61,6 +61,8 @@ package() {
     "$pkgdir/usr/share/doc/chatgpt-work-linux/audit-and-improvement-plan.md"
   install -Dm644 "$root/docs/work-upstream-assessment.md" \
     "$pkgdir/usr/share/doc/chatgpt-work-linux/work-upstream-assessment.md"
+  install -Dm644 "$root/docs/unified-electron-assessment.md" \
+    "$pkgdir/usr/share/doc/chatgpt-work-linux/unified-electron-assessment.md"
   install -Dm644 "$root/assets/ICON-PROVENANCE.md" \
     "$pkgdir/usr/share/doc/chatgpt-work-linux/icon-provenance.md"
   install -Dm644 "$root/docs/codex-desktop-linux-review.md" \

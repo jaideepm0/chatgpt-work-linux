@@ -1,5 +1,13 @@
 # Reference audit and improvement plan
 
+> **2026-07-10 architecture update:** the newly supplied 561,015,842-byte
+> `ChatGPT-work.dmg` is ChatGPT `26.707.31428`, a unified Electron 42
+> ChatGPT/Codex application, rather than the prior Apple-only Swift client.
+> The WebKit plan below is retained as the completed historical baseline and as
+> the architecture of `chatgpt-desktop-linux`. The active Work architecture,
+> compatibility failures, security gates, and performance plan are in
+> [unified-electron-assessment.md](unified-electron-assessment.md).
+
 ## Scope and verified baseline
 
 The reference repository was audited read-only at commit
@@ -8,16 +16,17 @@ as did 329 main-patcher tests and 379 optional-feature tests. The target host is
 Arch Linux x86_64 on KDE Wayland with GTK 3/4, WebKitGTK 2.52, PipeWire, XDG
 portals, Rust 1.96, and native pacman packaging tools.
 
-The current official macOS artifact was independently fetched from the URL
+The previously observed official macOS artifact was independently fetched from the URL
 linked by OpenAI's [desktop download page](https://chatgpt.com/features/desktop/)
 and recorded in [upstream-snapshot.json](upstream-snapshot.json). It is ChatGPT
 `1.2026.183`, build `1783607847`, commit `3dab2ed0d5`, SHA-256
 `49b33cadd2ec659b76352384f7ebd332a7ec7029663365a9f720f4a251d3b8d1`.
 The main application is an ARM64 Mach-O native macOS binary; no Electron marker
 or ASAR exists. OpenAI's own [requirements article](https://help.openai.com/en/articles/9275200)
-requires Apple Silicon and macOS 14. Binary translation or the reference
-repository's Electron replacement technique is therefore not a viable Linux
-architecture.
+requires Apple Silicon and macOS 14. At that observation point, binary
+translation or the reference repository's Electron replacement technique was
+not a viable Linux architecture. That conclusion is superseded for Work by the
+new unified Electron artifact.
 
 ## Findings in `codex-desktop-linux`
 

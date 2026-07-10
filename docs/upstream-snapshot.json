@@ -8,91 +8,34 @@
     "architectures": [
       "arm64"
     ],
-    "build_timestamp": "1783607958",
-    "bundle_identifier": "com.openai.chat",
-    "bundle_version": "1783607847",
-    "commit_hash": "3dab2ed0d5",
+    "build_timestamp": null,
+    "bundle_identifier": "com.openai.codex",
+    "bundle_version": "5059",
+    "commit_hash": null,
     "display_name": "ChatGPT",
-    "electron_markers": [],
-    "implementation": "native-macos",
+    "electron_markers": [
+      "app.asar"
+    ],
+    "implementation": "electron",
     "main_executable": "Contents/MacOS/ChatGPT",
-    "minimum_system_version": "14.0",
+    "minimum_system_version": "12.0",
     "native_markers": [
-      "ChatGPT.framework",
-      "Mach-O",
-      "Swift runtime"
+      "Mach-O"
     ],
-    "observed_feature_modules": [
-      {
-        "bundle": "ChatGPTADAVisualization_ChatGPTADAVisualization.bundle",
-        "capability": "data_visualization"
-      },
-      {
-        "bundle": "ChatGPTAutomation_ChatGPTAutomation.bundle",
-        "capability": "automations"
-      },
-      {
-        "bundle": "ChatGPTCodeExecution_ChatGPTCodeExecution.bundle",
-        "capability": "code_execution"
-      },
-      {
-        "bundle": "ChatGPTConnectors_ChatGPTConnectors.bundle",
-        "capability": "connectors"
-      },
-      {
-        "bundle": "ChatGPTDesktopCommon_ChatGPTDesktopCommon.bundle",
-        "capability": "desktop_integration"
-      },
-      {
-        "bundle": "ChatGPTFileLibrary_ChatGPTFileLibrary.bundle",
-        "capability": "file_library"
-      },
-      {
-        "bundle": "ChatGPTPresentation_ChatGPTPresentation.bundle",
-        "capability": "presentations"
-      },
-      {
-        "bundle": "ChatGPTProjectConnectors_ChatGPTProjectConnectors.bundle",
-        "capability": "project_connectors"
-      },
-      {
-        "bundle": "ChatGPTReviewAction_ChatGPTReviewAction.bundle",
-        "capability": "action_review"
-      },
-      {
-        "bundle": "ChatGPTSites_ChatGPTSites.bundle",
-        "capability": "sites"
-      },
-      {
-        "bundle": "ChatGPTTextEditor_ChatGPTTextEditor.bundle",
-        "capability": "text_editor"
-      },
-      {
-        "bundle": "ChatGPTWritingBlocks_ChatGPTWritingBlocks.bundle",
-        "capability": "writing_blocks"
-      },
-      {
-        "bundle": "Hive_Meeting.bundle",
-        "capability": "meetings"
-      }
-    ],
-    "short_version": "1.2026.183",
-    "sparkle_public_key": "IktUdD7h3A+E0F0nYHibnVnGZ7ZgdyTHAi4C6tLo/0c=",
-    "supported_platforms": [
-      "MacOSX"
-    ],
+    "observed_feature_modules": [],
+    "short_version": "26.707.31428",
+    "sparkle_public_key": "mNfr1v9t63BfgDtlw4C8lRvSY6uMggIXABDOCi3tS6k=",
+    "supported_platforms": [],
     "url_schemes": [
-      "chatgpt",
-      "com.openai.chat",
-      "openai"
+      "codex"
     ]
   },
   "artifact": {
     "archive_format": "dmg",
-    "entry_count": 836,
-    "name": "ChatGPT.dmg",
-    "sha256": "49b33cadd2ec659b76352384f7ebd332a7ec7029663365a9f720f4a251d3b8d1",
-    "size": 78575566
+    "entry_count": 10777,
+    "name": "ChatGPT-work.dmg",
+    "sha256": "6f67af7e2f934093ab8afebcec11374d40c8db8f9100fb6620f24155401d8319",
+    "size": 561015842
   },
   "binaries": [
     {
@@ -101,8 +44,44 @@
       ],
       "bits": 64,
       "kind": "dynamic-library",
-      "path": "Contents/Frameworks/Assets.framework/Versions/A/Assets",
-      "size": 772896
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Codex Framework",
+      "size": 255424704
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Helpers/Codex (Alerts).app/Contents/MacOS/Codex (Alerts)",
+      "size": 87520
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Helpers/Codex (GPU).app/Contents/MacOS/Codex (GPU)",
+      "size": 87520
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "size": 87520
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
+      "size": 87520
     },
     {
       "architectures": [
@@ -110,8 +89,8 @@
       ],
       "bits": 64,
       "kind": "dynamic-library",
-      "path": "Contents/Frameworks/ChatGPT.framework/Versions/A/ChatGPT",
-      "size": 114840064
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Libraries/libEGL.dylib",
+      "size": 109520
     },
     {
       "architectures": [
@@ -119,8 +98,8 @@
       ],
       "bits": 64,
       "kind": "dynamic-library",
-      "path": "Contents/Frameworks/LiveKitWebRTC.framework/Versions/A/LiveKitWebRTC",
-      "size": 12366912
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Libraries/libGLESv2.dylib",
+      "size": 6890080
     },
     {
       "architectures": [
@@ -128,17 +107,18 @@
       ],
       "bits": 64,
       "kind": "dynamic-library",
-      "path": "Contents/Frameworks/Lottie.framework/Versions/A/Lottie",
-      "size": 2209680
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Libraries/libvk_swiftshader.dylib",
+      "size": 16525472
     },
     {
       "architectures": [
-        "arm64"
+        "arm64",
+        "x86_64"
       ],
-      "bits": 64,
-      "kind": "dynamic-library",
+      "bits": "universal",
+      "kind": "universal-binary",
       "path": "Contents/Frameworks/Sparkle.framework/Versions/B/Sparkle",
-      "size": 418352
+      "size": 979904
     },
     {
       "architectures": [
@@ -148,7 +128,7 @@
       "bits": "universal",
       "kind": "universal-binary",
       "path": "Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app/Contents/MacOS/Updater",
-      "size": 272672
+      "size": 290096
     },
     {
       "architectures": [
@@ -158,7 +138,7 @@
       "bits": "universal",
       "kind": "universal-binary",
       "path": "Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader",
-      "size": 170384
+      "size": 171872
     },
     {
       "architectures": [
@@ -168,26 +148,7 @@
       "bits": "universal",
       "kind": "universal-binary",
       "path": "Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer",
-      "size": 222000
-    },
-    {
-      "architectures": [
-        "arm64"
-      ],
-      "bits": 64,
-      "kind": "dynamic-library",
-      "path": "Contents/Frameworks/libswiftCompatibilitySpan.dylib",
-      "size": 54816
-    },
-    {
-      "architectures": [
-        "arm64",
-        "x86_64"
-      ],
-      "bits": "universal",
-      "kind": "universal-binary",
-      "path": "Contents/Frameworks/libwebrtc-audio-processing-2.1.dylib",
-      "size": 2739712
+      "size": 223088
     },
     {
       "architectures": [
@@ -196,7 +157,16 @@
       "bits": 64,
       "kind": "executable",
       "path": "Contents/MacOS/ChatGPT",
-      "size": 272576
+      "size": 69984
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "bundle",
+      "path": "Contents/PlugIns/CodexDockTilePlugin.plugin/Contents/MacOS/CodexDockTilePlugin",
+      "size": 76368
     },
     {
       "architectures": [
@@ -204,19 +174,94 @@
       ],
       "bits": 64,
       "kind": "executable",
-      "path": "Contents/Resources/ChatGPTHelper",
-      "size": 275056
+      "path": "Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService",
+      "size": 18607232
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/CUALockScreenGuardian.app/Contents/MacOS/CUALockScreenGuardian",
+      "size": 18180336
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/Codex Computer Use Installer.app/Contents/MacOS/Codex Computer Use Installer",
+      "size": 90432
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "bundle",
+      "path": "Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/Codex Computer Use Installer.app/Contents/Resources/CodexComputerUseAuthorizationPlugin.bundle/Contents/MacOS/CodexComputerUseAuthorizationPlugin",
+      "size": 67872
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
+      "size": 12405632
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Resources/plugins/openai-bundled/plugins/record-and-replay/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService",
+      "size": 18607232
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Resources/plugins/openai-bundled/plugins/record-and-replay/Codex Computer Use.app/Contents/SharedSupport/CUALockScreenGuardian.app/Contents/MacOS/CUALockScreenGuardian",
+      "size": 18182384
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Resources/plugins/openai-bundled/plugins/record-and-replay/Codex Computer Use.app/Contents/SharedSupport/Codex Computer Use Installer.app/Contents/MacOS/Codex Computer Use Installer",
+      "size": 91456
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "bundle",
+      "path": "Contents/Resources/plugins/openai-bundled/plugins/record-and-replay/Codex Computer Use.app/Contents/SharedSupport/Codex Computer Use Installer.app/Contents/Resources/CodexComputerUseAuthorizationPlugin.bundle/Contents/MacOS/CodexComputerUseAuthorizationPlugin",
+      "size": 69920
+    },
+    {
+      "architectures": [
+        "arm64"
+      ],
+      "bits": 64,
+      "kind": "executable",
+      "path": "Contents/Resources/plugins/openai-bundled/plugins/record-and-replay/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
+      "size": 12405632
     }
   ],
   "schema_version": 2,
   "source": {
-    "http": {
-      "accept_ranges": "bytes",
-      "content_length": 78575566,
-      "content_type": "application/x-apple-diskimage",
-      "etag": "0x8DEDDE5780868AA",
-      "last_modified": "Thu, 09 Jul 2026 18:11:16 GMT"
-    },
+    "http": {},
     "url": "https://persistent.oaistatic.com/sidekick/public/ChatGPT.dmg"
   },
   "verification": {

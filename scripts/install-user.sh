@@ -30,7 +30,8 @@ base="$prefix/opt/chatgpt-work-linux"
 versions="$base/versions"
 bin_dir="$prefix/bin"
 desktop_dir="$prefix/share/applications"
-icon_dir="$prefix/share/icons/hicolor/scalable/apps"
+icon_dir="$prefix/share/icons/hicolor/2048x2048/apps"
+legacy_icon_dir="$prefix/share/icons/hicolor/scalable/apps"
 metainfo_dir="$prefix/share/metainfo"
 
 env PATH=/usr/bin:/bin \
@@ -72,11 +73,12 @@ release_sources=(
   "$repo_root/docs/architecture.md"
   "$repo_root/docs/audit-and-improvement-plan.md"
   "$repo_root/docs/work-upstream-assessment.md"
+  "$repo_root/docs/unified-electron-assessment.md"
   "$repo_root/docs/upstream-snapshot.json"
   "$repo_root/docs/codex-desktop-linux-review.md"
   "$repo_root/docs/validation-report.md"
   "$repo_root/assets/ICON-PROVENANCE.md"
-  "$repo_root/assets/chatgpt-work-linux.svg"
+  "$repo_root/assets/chatgpt-work-linux.png"
   "$repo_root/packaging/linux/io.github.chatgpt_work_linux.desktop"
   "$repo_root/packaging/linux/io.github.chatgpt_work_linux.metainfo.xml"
   "$repo_root/LICENSE"
@@ -101,7 +103,7 @@ cleanup_paths=(
   "$base/.previous-new-$$"
   "$bin_dir/.chatgpt-work-linux-new-$$"
   "$desktop_dir/.io.github.chatgpt_work_linux.desktop-new-$$"
-  "$icon_dir/.io.github.chatgpt_work_linux.svg-new-$$"
+  "$icon_dir/.io.github.chatgpt_work_linux.png-new-$$"
   "$metainfo_dir/.io.github.chatgpt_work_linux.metainfo.xml-new-$$"
 )
 cleanup() {
@@ -131,6 +133,8 @@ if [[ ! -e $final ]]; then
     "$stage/share/doc/chatgpt-work-linux/audit-and-improvement-plan.md"
   install -Dm644 "$repo_root/docs/work-upstream-assessment.md" \
     "$stage/share/doc/chatgpt-work-linux/work-upstream-assessment.md"
+  install -Dm644 "$repo_root/docs/unified-electron-assessment.md" \
+    "$stage/share/doc/chatgpt-work-linux/unified-electron-assessment.md"
   install -Dm644 "$repo_root/assets/ICON-PROVENANCE.md" \
     "$stage/share/doc/chatgpt-work-linux/icon-provenance.md"
   install -Dm644 "$repo_root/docs/upstream-snapshot.json" \
@@ -145,8 +149,8 @@ if [[ ! -e $final ]]; then
     "$stage/share/doc/chatgpt-work-linux/validation-report.md"
   install -Dm644 "$repo_root/packaging/linux/io.github.chatgpt_work_linux.desktop" \
     "$stage/share/applications/io.github.chatgpt_work_linux.desktop"
-  install -Dm644 "$repo_root/assets/chatgpt-work-linux.svg" \
-    "$stage/share/icons/hicolor/scalable/apps/io.github.chatgpt_work_linux.svg"
+  install -Dm644 "$repo_root/assets/chatgpt-work-linux.png" \
+    "$stage/share/icons/hicolor/2048x2048/apps/io.github.chatgpt_work_linux.png"
   install -Dm644 "$repo_root/packaging/linux/io.github.chatgpt_work_linux.metainfo.xml" \
     "$stage/share/metainfo/io.github.chatgpt_work_linux.metainfo.xml"
   install -Dm644 "$repo_root/LICENSE" "$stage/share/licenses/chatgpt-work-linux/LICENSE"
@@ -180,10 +184,11 @@ publish_file \
   "$desktop_dir/.io.github.chatgpt_work_linux.desktop-new-$$"
 rm -f -- "$desktop_dir/chatgpt-work-linux.desktop"
 publish_file \
-  "$final/share/icons/hicolor/scalable/apps/io.github.chatgpt_work_linux.svg" \
-  "$icon_dir/io.github.chatgpt_work_linux.svg" 0644 \
-  "$icon_dir/.io.github.chatgpt_work_linux.svg-new-$$"
-rm -f -- "$icon_dir/chatgpt-work-linux.svg"
+  "$final/share/icons/hicolor/2048x2048/apps/io.github.chatgpt_work_linux.png" \
+  "$icon_dir/io.github.chatgpt_work_linux.png" 0644 \
+  "$icon_dir/.io.github.chatgpt_work_linux.png-new-$$"
+rm -f -- "$legacy_icon_dir/chatgpt-work-linux.svg" \
+  "$legacy_icon_dir/io.github.chatgpt_work_linux.svg"
 publish_file \
   "$final/share/metainfo/io.github.chatgpt_work_linux.metainfo.xml" \
   "$metainfo_dir/io.github.chatgpt_work_linux.metainfo.xml" 0644 \
