@@ -98,7 +98,8 @@ Next release candidates:
 
 1. KDE Wayland production CI/smoke coverage plus an X11 compatibility lane,
    with mocked first-party pages, media permission tests, web-process crash
-   injection, and resource budgets.
+   injection, and resource budgets. A host-side Wayland/cgroup/single-instance
+   smoke harness is implemented; CI, mocked pages, and X11 remain.
 2. Screenshot/file drag-to-composer support only if a stable browser API makes
    it possible without DOM automation.
 3. Explicit IDE integration with context preview, byte/line limits, diff

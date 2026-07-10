@@ -84,6 +84,7 @@ only by the optional upstream metadata inspector, never to launch the app.
 ```bash
 make check
 make build
+make smoke-wayland
 make run
 make install-user
 ```
@@ -99,6 +100,11 @@ Build an Arch package:
 make package-pacman
 sudo pacman -U dist/chatgpt-work-linux-*.pkg.tar.zst
 ```
+
+`make smoke-wayland` runs an isolated private profile with no X11 display,
+forces the GTK Wayland backend, verifies the profile-scoped single instance and
+both WebKit subprocesses, exercises hide/show handoff, checks shutdown cleanup,
+and enforces the two-core-class 768 MiB cgroup memory ceiling.
 
 Build a least-privilege Flatpak after installing GNOME SDK 50 and the stable
 Rust 25.08 SDK extension:

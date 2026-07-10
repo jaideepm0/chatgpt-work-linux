@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := build
 
-.PHONY: build check clean doctor install-user package-flatpak package-pacman run test uninstall-user
+.PHONY: build check clean doctor install-user package-flatpak package-pacman run smoke-wayland test uninstall-user
 
 build:
 	env PATH=/usr/bin:/bin \
@@ -13,6 +13,9 @@ run:
 
 doctor:
 	env PATH=/usr/bin:/bin cargo run --locked -- doctor
+
+smoke-wayland: build
+	bash scripts/smoke-wayland.sh ./target/release/chatgpt-work-linux
 
 test:
 	env PATH=/usr/bin:/bin cargo test --locked
