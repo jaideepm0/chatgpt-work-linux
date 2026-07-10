@@ -53,7 +53,7 @@ Systemd recorded 1.614 seconds of CPU across 13.640 seconds wall time and a
 - The Arch package was built from a deterministic checksummed source archive
   with Cargo `--frozen`; the build cache is keyed by that complete source hash.
 - Package SHA-256:
-  `a85c63c190e502dae9c81320258bf398b20b9eecc72cc140c316df0c7730652f`.
+  `842c4383af3d453928e297dd2451ff304d8677997106722e1e6f93271fe3d311`.
 - Compressed size: approximately 1.7 MiB. Installed size: 3.90 MiB.
 - The stripped PIE targets generic x86-64/Linux 4.4 and contains no detected
   workspace, Cargo-home, or Rustup-home path.
@@ -74,7 +74,8 @@ Systemd recorded 1.614 seconds of CPU across 13.640 seconds wall time and a
 - AppStream composition succeeded and exported commit
   `23549e0dd0b7408f7c28619e611016e3615d0eedacfd432f2510ee9e4300792f`.
 - The locally installable Flatpak bundle is approximately 1.3 MiB excluding
-  the shared runtime.
+  the shared runtime; its SHA-256 is
+  `ea809064c466776cfb871e41c208b85e5f901795db7dd66a7b2394e1fe8b8276`.
 - Installed permissions contain only `ipc`, `network`, Wayland,
   fallback-X11, PulseAudio, DRI, and `xdg-download`. There is no host/home
   filesystem, host spawn, broad bus, or input-device grant.
@@ -84,6 +85,10 @@ Systemd recorded 1.614 seconds of CPU across 13.640 seconds wall time and a
 - A non-default Flatpak profile acquired its filtered D-Bus sub-name, loaded a
   real HTTPS page, forwarded a companion invocation in 99 ms, and exited
   cleanly through the exported native quit action.
+- The final system-installed native binary then loaded a real HTTPS page on
+  Wayland, exported the complete action set, and quit cleanly with no remaining
+  controller process. Its canonical desktop and icon identities replaced the
+  earlier filenames, and `pacman -Qkk` again reported 0 altered files.
 
 ## Remaining interactive release matrix
 
