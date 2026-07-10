@@ -73,10 +73,11 @@ Runtime:
 Arch Linux packages:
 
 ```bash
-sudo pacman -S --needed gtk3 webkit2gtk-4.1 xdg-desktop-portal
+sudo pacman -S --needed gtk3 webkit2gtk-4.1 xdg-desktop-portal cargo-cyclonedx
 ```
 
-Build requirements are Rust/Cargo and `pkg-config`. Python and 7-Zip are used
+Build requirements are Rust/Cargo, `pkg-config`, and the package-managed
+`cargo-cyclonedx` tool for release SBOM generation. Python and 7-Zip are used
 only by the optional upstream metadata inspector, never to launch the app.
 
 ## Build, run, and install
@@ -84,6 +85,7 @@ only by the optional upstream metadata inspector, never to launch the app.
 ```bash
 make check
 make build
+make sbom
 make smoke-wayland
 make run
 make install-user
@@ -105,6 +107,10 @@ sudo pacman -U dist/chatgpt-work-linux-*.pkg.tar.zst
 forces the GTK Wayland backend, verifies the profile-scoped single instance and
 both WebKit subprocesses, exercises hide/show handoff, checks shutdown cleanup,
 and enforces the two-core-class 768 MiB cgroup memory ceiling.
+
+`make sbom` emits a reproducible CycloneDX 1.5 JSON inventory in `dist/`.
+Native packages include the same all-dependency inventory alongside the
+architecture and upstream-provenance documents.
 
 Build a least-privilege Flatpak after installing GNOME SDK 50 and the stable
 Rust 25.08 SDK extension:

@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := build
 
-.PHONY: build check clean doctor install-user package-flatpak package-pacman run smoke-wayland test uninstall-user
+.PHONY: build check clean doctor install-user package-flatpak package-pacman run sbom smoke-wayland test uninstall-user
 
 build:
 	env PATH=/usr/bin:/bin \
@@ -36,6 +36,11 @@ package-pacman:
 
 package-flatpak:
 	bash scripts/build-flatpak.sh
+
+sbom:
+	mkdir -p dist
+	SOURCE_DATE_EPOCH=0 CARGO_NET_OFFLINE=true cargo cyclonedx --format json --spec-version 1.5 --override-filename chatgpt-work-linux.cdx --all --target x86_64-unknown-linux-gnu --quiet
+	mv -f chatgpt-work-linux.cdx.json dist/chatgpt-work-linux.cdx.json
 
 install-user:
 	bash scripts/install-user.sh

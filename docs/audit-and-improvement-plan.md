@@ -105,7 +105,9 @@ Next release candidates:
 3. Explicit IDE integration with context preview, byte/line limits, diff
    approval, and no background accessibility scraping.
 4. Signed package repositories, SBOM, reproducible-build comparison, and
-   release provenance.
+   release provenance. Reproducible CycloneDX 1.5 generation and native-package
+   inclusion are implemented; signing, repository publication, and independent
+   rebuild comparison remain.
 5. Work capability parity in reviewed slices: explicit local-file context,
    browser integration, IDE context/diff review, and scheduled-work desktop
    notifications. Every slice requires a supported service surface, a visible

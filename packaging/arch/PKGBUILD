@@ -11,7 +11,7 @@ optdepends=(
   'google-chrome: Chromium compatibility engine'
   'chromium: Chromium compatibility engine'
 )
-makedepends=('cargo')
+makedepends=('cargo' 'cargo-cyclonedx')
 provides=('chatgpt-work-linux')
 options=('!debug' 'strip')
 source=("$pkgname-$pkgver.tar.gz")
@@ -23,6 +23,12 @@ build() {
     CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$srcdir/target}" \
     RUSTFLAGS="--remap-path-prefix=$srcdir/$pkgname-$pkgver=/usr/src/debug/$pkgname --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/usr/src/cargo --remap-path-prefix=${RUSTUP_HOME:-$HOME/.rustup}=/usr/src/rustup" \
     cargo build --release --frozen
+  env \
+    CARGO_NET_OFFLINE=true \
+    SOURCE_DATE_EPOCH=0 \
+    cargo cyclonedx --format json --spec-version 1.5 \
+      --override-filename chatgpt-work-linux.cdx --all \
+      --target x86_64-unknown-linux-gnu --quiet
 }
 
 check() {
@@ -60,5 +66,7 @@ package() {
     "$pkgdir/usr/share/doc/chatgpt-work-linux/codex-desktop-linux-review.md"
   install -Dm644 "$root/docs/upstream-snapshot.json" \
     "$pkgdir/usr/share/doc/chatgpt-work-linux/upstream-snapshot.json"
+  install -Dm644 "$root/chatgpt-work-linux.cdx.json" \
+    "$pkgdir/usr/share/doc/chatgpt-work-linux/chatgpt-work-linux.cdx.json"
   install -Dm644 "$root/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }

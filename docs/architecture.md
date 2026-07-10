@@ -214,3 +214,9 @@ bounded metadata inspector. The inspector never executes or packages artifact
 content. Because the URL is a mutable alias and OpenAI does not publish a
 SHA-256 beside it, final signing/notarization verification remains a macOS
 release-maintainer task.
+
+Native releases also generate a deterministic CycloneDX 1.5 inventory from the
+locked Cargo graph with networking disabled. The Arch package installs that
+SBOM beside its provenance documents. User-local immutable release identifiers
+hash every staged binary, integration file, document, icon, and SBOM input, so
+a metadata-only change cannot be mistaken for an already-installed release.

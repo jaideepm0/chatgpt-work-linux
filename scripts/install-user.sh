@@ -41,12 +41,51 @@ env PATH=/usr/bin:/bin \
   --locked
 
 binary="$repo_root/target/release/chatgpt-work-linux"
+sbom="$repo_root/chatgpt-work-linux.cdx.json"
+rm -f -- "$sbom"
+cleanup_sbom() {
+  rm -f -- "$sbom"
+}
+trap cleanup_sbom EXIT HUP INT TERM
+if ! cargo cyclonedx --version >/dev/null 2>&1; then
+  printf 'install-user requires the cargo-cyclonedx build tool\n' >&2
+  exit 2
+fi
+SOURCE_DATE_EPOCH=0 CARGO_NET_OFFLINE=true cargo cyclonedx \
+  --manifest-path "$repo_root/Cargo.toml" \
+  --format json \
+  --spec-version 1.5 \
+  --override-filename chatgpt-work-linux.cdx \
+  --all \
+  --target x86_64-unknown-linux-gnu \
+  --quiet
 version=$($binary --version | awk '{print $2}')
 if [[ ! $version =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]]; then
   printf 'refusing unsafe application version: %q\n' "$version" >&2
   exit 1
 fi
-digest=$(sha256sum "$binary" | awk '{print $1}')
+release_sources=(
+  "$binary"
+  "$repo_root/scripts/inspect-upstream.py"
+  "$repo_root/config.example.toml"
+  "$repo_root/docs/architecture.md"
+  "$repo_root/docs/audit-and-improvement-plan.md"
+  "$repo_root/docs/work-upstream-assessment.md"
+  "$repo_root/docs/upstream-snapshot.json"
+  "$repo_root/docs/codex-desktop-linux-review.md"
+  "$repo_root/docs/validation-report.md"
+  "$repo_root/assets/ICON-PROVENANCE.md"
+  "$repo_root/assets/chatgpt-work-linux.svg"
+  "$repo_root/packaging/linux/io.github.chatgpt_work_linux.desktop"
+  "$repo_root/packaging/linux/io.github.chatgpt_work_linux.metainfo.xml"
+  "$repo_root/LICENSE"
+  "$sbom"
+)
+digest=$(
+  for source in "${release_sources[@]}"; do
+    sha256sum "$source" | awk '{print $1}'
+  done | sha256sum | awk '{print $1}'
+)
 release_id="$version-$digest"
 final="$versions/$release_id"
 stage="$versions/.stage-$release_id-$$"
@@ -55,6 +94,7 @@ mkdir -p "$versions" "$bin_dir" "$desktop_dir" "$icon_dir" "$metainfo_dir"
 chmod 0700 "$base" "$versions"
 
 cleanup_paths=(
+  "$sbom"
   "$stage"
   "$base/.current-new-$$"
   "$base/.previous-new-$$"
@@ -94,6 +134,8 @@ if [[ ! -e $final ]]; then
     "$stage/share/doc/chatgpt-work-linux/icon-provenance.md"
   install -Dm644 "$repo_root/docs/upstream-snapshot.json" \
     "$stage/share/doc/chatgpt-work-linux/upstream-snapshot.json"
+  install -Dm644 "$sbom" \
+    "$stage/share/doc/chatgpt-work-linux/chatgpt-work-linux.cdx.json"
   if [[ -f $repo_root/docs/codex-desktop-linux-review.md ]]; then
     install -Dm644 "$repo_root/docs/codex-desktop-linux-review.md" \
       "$stage/share/doc/chatgpt-work-linux/codex-desktop-linux-review.md"
