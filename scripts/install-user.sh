@@ -34,7 +34,7 @@ icon_dir="$prefix/share/icons/hicolor/scalable/apps"
 metainfo_dir="$prefix/share/metainfo"
 
 env PATH=/usr/bin:/bin \
-  RUSTFLAGS="--remap-path-prefix=$repo_root=/usr/src/chatgpt-work-linux" \
+  RUSTFLAGS="--remap-path-prefix=$repo_root=/usr/src/chatgpt-work-linux --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/usr/src/cargo --remap-path-prefix=${RUSTUP_HOME:-$HOME/.rustup}=/usr/src/rustup" \
   cargo build \
   --manifest-path "$repo_root/Cargo.toml" \
   --release \
@@ -94,6 +94,8 @@ if [[ ! -e $final ]]; then
     install -Dm644 "$repo_root/docs/codex-desktop-linux-review.md" \
       "$stage/share/doc/chatgpt-work-linux/codex-desktop-linux-review.md"
   fi
+  install -Dm644 "$repo_root/docs/validation-report.md" \
+    "$stage/share/doc/chatgpt-work-linux/validation-report.md"
   install -Dm644 "$repo_root/packaging/linux/chatgpt-work-linux.desktop" \
     "$stage/share/applications/chatgpt-work-linux.desktop"
   install -Dm644 "$repo_root/assets/chatgpt-work-linux.svg" \

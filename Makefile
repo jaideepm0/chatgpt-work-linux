@@ -5,7 +5,7 @@ SHELL := /usr/bin/env bash
 
 build:
 	env PATH=/usr/bin:/bin \
-		RUSTFLAGS='--remap-path-prefix=$(CURDIR)=/usr/src/chatgpt-work-linux' \
+		RUSTFLAGS='--remap-path-prefix=$(CURDIR)=/usr/src/chatgpt-work-linux --remap-path-prefix=$(HOME)/.cargo=/usr/src/cargo --remap-path-prefix=$(HOME)/.rustup=/usr/src/rustup' \
 		cargo build --release --locked
 
 run:

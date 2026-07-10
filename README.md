@@ -139,6 +139,7 @@ retrieval is captured as a new observation rather than silently trusted.
 - [Complete codex-desktop-linux review](docs/codex-desktop-linux-review.md)
 - [Architecture, security, and performance design](docs/architecture.md)
 - [Current upstream snapshot](docs/upstream-snapshot.json)
+- [Current validation evidence](docs/validation-report.md)
 - [Security policy](SECURITY.md)
 
 ## Known limits

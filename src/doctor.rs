@@ -168,11 +168,14 @@ fn desktop_portal_capabilities() -> (bool, bool) {
         return (false, false);
     };
     runtime
-        .block_on(tokio::time::timeout(Duration::from_millis(1500), async {
-            let screenshot = ashpd::desktop::screenshot::ScreenshotProxy::new().await;
-            let shortcuts = ashpd::desktop::global_shortcuts::GlobalShortcuts::new().await;
-            (screenshot, shortcuts)
-        }))
+        .block_on(async {
+            tokio::time::timeout(Duration::from_millis(1500), async {
+                let screenshot = ashpd::desktop::screenshot::ScreenshotProxy::new().await;
+                let shortcuts = ashpd::desktop::global_shortcuts::GlobalShortcuts::new().await;
+                (screenshot, shortcuts)
+            })
+            .await
+        })
         .map(|(screenshot, shortcuts)| (screenshot.is_ok(), shortcuts.is_ok()))
         .unwrap_or((false, false))
 }
@@ -196,5 +199,15 @@ fn describe_path(path: &Path) -> String {
         Ok(_) => "exists with unexpected type".to_owned(),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => "not created yet".to_owned(),
         Err(error) => format!("unavailable: {error}"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn portal_probe_can_create_its_own_runtime() {
+        let _ = desktop_portal_capabilities();
     }
 }

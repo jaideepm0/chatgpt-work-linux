@@ -20,4 +20,8 @@
 - Added cgroup-aware efficient-mode cache and WebKit memory-pressure policy,
   content-hashed release manifests, checksummed source packaging, and build
   path remapping.
+- Fixed the diagnostics portal probe so its timeout is created inside the
+  Tokio runtime; the installed `doctor --json` path now has a regression test.
+- Keyed package build caches by the full source-archive hash to prevent stale
+  outputs when deterministic archive timestamps are reused.
 - Refreshed the official Work-era metadata reference to ChatGPT 1.2026.183.

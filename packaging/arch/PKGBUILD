@@ -20,19 +20,23 @@ sha256sums=('@SOURCE_SHA256@')
 build() {
   cd "$srcdir/$pkgname-$pkgver"
   env \
-    CARGO_TARGET_DIR="$srcdir/target" \
-    RUSTFLAGS="--remap-path-prefix=$srcdir/$pkgname-$pkgver=/usr/src/debug/$pkgname" \
+    CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$srcdir/target}" \
+    RUSTFLAGS="--remap-path-prefix=$srcdir/$pkgname-$pkgver=/usr/src/debug/$pkgname --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/usr/src/cargo --remap-path-prefix=${RUSTUP_HOME:-$HOME/.rustup}=/usr/src/rustup" \
     cargo build --release --frozen
 }
 
 check() {
   cd "$srcdir/$pkgname-$pkgver"
-  env CARGO_TARGET_DIR="$srcdir/target" cargo test --frozen
+  env \
+    CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$srcdir/target}" \
+    RUSTFLAGS="--remap-path-prefix=$srcdir/$pkgname-$pkgver=/usr/src/debug/$pkgname --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/usr/src/cargo --remap-path-prefix=${RUSTUP_HOME:-$HOME/.rustup}=/usr/src/rustup" \
+    cargo test --frozen
 }
 
 package() {
   local root="$srcdir/$pkgname-$pkgver"
-  install -Dm755 "$srcdir/target/release/chatgpt-work-linux" \
+  local cargo_target="${CARGO_TARGET_DIR:-$srcdir/target}"
+  install -Dm755 "$cargo_target/release/chatgpt-work-linux" \
     "$pkgdir/usr/bin/chatgpt-work-linux"
   install -Dm644 "$root/assets/chatgpt-work-linux.svg" \
     "$pkgdir/usr/share/icons/hicolor/scalable/apps/chatgpt-work-linux.svg"
