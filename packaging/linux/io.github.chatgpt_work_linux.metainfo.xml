@@ -2,20 +2,21 @@
 <component type="desktop-application">
   <id>io.github.chatgpt_work_linux</id>
   <name>chatgpt-work-linux (Unofficial)</name>
-  <summary>Lightweight community Linux shell for the ChatGPT Work web experience</summary>
+  <summary>Community Linux compatibility build for the unified ChatGPT Work application</summary>
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
   <description>
     <p>
-      The chatgpt-work-linux application provides an isolated, lightweight GTK/WebKit desktop
-      window for the official ChatGPT web service, plus native Linux global
-      shortcuts, screenshot capture, downloads, permissions, diagnostics, and
-      Chromium/browser compatibility fallbacks.
+      ChatGPT Work Linux rehosts the portable application plane from a locally
+      supplied official ChatGPT Work artifact with a Wayland-first Electron
+      runtime, Linux app-server integration, plugins, Sites, scheduled work,
+      browser-use, and standard compositor window decorations.
     </p>
     <p>
       This is an independent community project. It is not produced, supported,
-      or endorsed by OpenAI and does not include OpenAI application binaries.
-      The desktop icon is the unmodified official ChatGPT application icon;
+      or endorsed by OpenAI. Builds are produced locally from a user-supplied
+      artifact and are not redistributed by this project. The desktop icon is
+      the unmodified official ChatGPT application icon;
       OpenAI owns the icon and all ChatGPT marks.
     </p>
   </description>
@@ -29,9 +30,9 @@
   <url type="homepage">https://chatgpt.com/work/</url>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.1.0" date="2026-07-10">
+    <release version="26.707.31428" date="2026-07-10">
       <description>
-        <p>Initial native Linux architecture and packaging.</p>
+        <p>Initial unified ChatGPT Work compatibility release for Linux.</p>
       </description>
     </release>
   </releases>
