@@ -1007,7 +1007,7 @@ impl GuiState {
         let dialog = gtk::AboutDialog::new();
         dialog.set_transient_for(self.primary_window().as_ref().map(|record| &record.window));
         dialog.set_modal(true);
-        dialog.set_program_name("chatgpt-work-linux");
+        dialog.set_program_name("chatgpt-work-linux — Unofficial");
         dialog.set_version(Some(crate::VERSION));
         dialog.set_comments(Some(
             "Unofficial independent community client for the ChatGPT Work experience on Linux. Not affiliated with or endorsed by OpenAI.",

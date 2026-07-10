@@ -88,6 +88,10 @@ if [[ ! -e $final ]]; then
     "$stage/share/doc/chatgpt-work-linux/architecture.md"
   install -Dm644 "$repo_root/docs/audit-and-improvement-plan.md" \
     "$stage/share/doc/chatgpt-work-linux/audit-and-improvement-plan.md"
+  install -Dm644 "$repo_root/docs/work-upstream-assessment.md" \
+    "$stage/share/doc/chatgpt-work-linux/work-upstream-assessment.md"
+  install -Dm644 "$repo_root/assets/ICON-PROVENANCE.md" \
+    "$stage/share/doc/chatgpt-work-linux/icon-provenance.md"
   install -Dm644 "$repo_root/docs/upstream-snapshot.json" \
     "$stage/share/doc/chatgpt-work-linux/upstream-snapshot.json"
   if [[ -f $repo_root/docs/codex-desktop-linux-review.md ]]; then

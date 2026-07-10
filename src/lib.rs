@@ -10,7 +10,7 @@ pub mod shortcut;
 pub mod state;
 
 pub const APP_ID_BASE: &str = "io.github.chatgpt_work_linux";
-pub const APP_NAME: &str = "chatgpt-work-linux";
+pub const APP_NAME: &str = "chatgpt-work-linux — Unofficial";
 pub const DEFAULT_START_URL: &str = "https://chatgpt.com/";
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 

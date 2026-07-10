@@ -5,9 +5,12 @@ official ChatGPT web experience, including ChatGPT Work where the signed-in
 account has access. It uses the system WebKitGTK runtime by default and keeps
 Chromium app mode and the system browser as compatibility fallbacks.
 
-This project is not an OpenAI product, is not endorsed or supported by OpenAI,
-and does not redistribute the official macOS application, OpenAI artwork, or a
-private ChatGPT API. “ChatGPT” and “ChatGPT Work” are OpenAI marks.
+This project is not an OpenAI product and is not endorsed or supported by
+OpenAI. It does not redistribute the official macOS application or use a
+private ChatGPT API. The desktop entry uses the unmodified official ChatGPT app
+icon for service identification; OpenAI owns that icon and the “ChatGPT” and
+“ChatGPT Work” marks. The application, desktop entry, About dialog, and package
+metadata identify this build as unofficial.
 
 ## What is implemented
 
@@ -35,7 +38,7 @@ bind `chatgpt-work-linux --toggle` in the desktop's shortcut settings.
 
 ## Why the macOS binary is not converted
 
-The official download currently serves the Work-era ChatGPT `1.2026.183`
+The official download currently serves the Work-capable ChatGPT `1.2026.183`
 (build `1783607847`, commit `3dab2ed0d5`), an Apple Silicon-only native
 Swift/AppKit/SwiftUI application. It has no Electron
 runtime, `app.asar`, or portable web bundle, so the ASAR-rehosting strategy in
@@ -49,6 +52,12 @@ experience as containing ChatGPT Work and Codex. This implementation uses the
 public web surface as the remote product plane while a native Rust controller
 supplies Linux lifecycle, policy, portals, settings, recovery, and packaging.
 It does not translate or patch proprietary application code.
+
+The current official DMG is 78,575,566 bytes compressed and 203,461,632 bytes
+expanded. The 500+ MiB artifact seen beside this repository is the separate
+Codex DMG, not a ChatGPT Work download. The structural Work assessment and
+observed native feature bundles are recorded in
+[docs/work-upstream-assessment.md](docs/work-upstream-assessment.md).
 
 ## Requirements
 
@@ -152,6 +161,7 @@ retrieval is captured as a new observation rather than silently trusted.
 - [Complete codex-desktop-linux review](docs/codex-desktop-linux-review.md)
 - [Architecture, security, and performance design](docs/architecture.md)
 - [Current upstream snapshot](docs/upstream-snapshot.json)
+- [ChatGPT Work upstream assessment](docs/work-upstream-assessment.md)
 - [Current validation evidence](docs/validation-report.md)
 - [Flatpak sandbox audit](docs/flatpak-sandbox.md)
 - [Security policy](SECURITY.md)

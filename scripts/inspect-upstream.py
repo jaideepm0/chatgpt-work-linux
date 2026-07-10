@@ -31,6 +31,26 @@ MAX_BINARY_BYTES = 512 * 1024 * 1024
 MAX_SELECTED_BINARY_BYTES = 1024 * 1024 * 1024
 MAX_SELECTED_BINARIES = 64
 
+# These are exact resource-bundle names, not claims that an account is entitled
+# to a feature or that the feature can be rehosted on Linux. Recording them lets
+# maintainers detect meaningful upstream product drift without extracting or
+# interpreting proprietary UI resources.
+FEATURE_BUNDLE_MARKERS = {
+    "ChatGPTADAVisualization_ChatGPTADAVisualization.bundle": "data_visualization",
+    "ChatGPTAutomation_ChatGPTAutomation.bundle": "automations",
+    "ChatGPTCodeExecution_ChatGPTCodeExecution.bundle": "code_execution",
+    "ChatGPTConnectors_ChatGPTConnectors.bundle": "connectors",
+    "ChatGPTDesktopCommon_ChatGPTDesktopCommon.bundle": "desktop_integration",
+    "ChatGPTFileLibrary_ChatGPTFileLibrary.bundle": "file_library",
+    "ChatGPTPresentation_ChatGPTPresentation.bundle": "presentations",
+    "ChatGPTProjectConnectors_ChatGPTProjectConnectors.bundle": "project_connectors",
+    "ChatGPTReviewAction_ChatGPTReviewAction.bundle": "action_review",
+    "ChatGPTSites_ChatGPTSites.bundle": "sites",
+    "ChatGPTTextEditor_ChatGPTTextEditor.bundle": "text_editor",
+    "ChatGPTWritingBlocks_ChatGPTWritingBlocks.bundle": "writing_blocks",
+    "Hive_Meeting.bundle": "meetings",
+}
+
 
 class InspectionError(RuntimeError):
     """An expected validation or inspection step failed."""
@@ -447,6 +467,16 @@ def classify_implementation(
     return implementation, sorted(electron_markers), sorted(native_markers)
 
 
+def observed_feature_modules(app_root: str, archive_paths: list[str]) -> list[dict[str, str]]:
+    prefix = f"{app_root}/Contents/Frameworks/ChatGPT.framework/Versions/A/Resources/"
+    observed: list[dict[str, str]] = []
+    for bundle, capability in FEATURE_BUNDLE_MARKERS.items():
+        bundle_prefix = f"{prefix}{bundle}"
+        if any(path == bundle_prefix or path.startswith(f"{bundle_prefix}/") for path in archive_paths):
+            observed.append({"bundle": bundle, "capability": capability})
+    return observed
+
+
 def inspect(args: argparse.Namespace) -> dict[str, Any]:
     source_url = validate_source_url(args.source_url)
     dmg = args.dmg.expanduser().resolve()
@@ -593,6 +623,7 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
         "main_executable": main_executable,
         "minimum_system_version": plist_string(plist, "LSMinimumSystemVersion"),
         "native_markers": native_markers,
+        "observed_feature_modules": observed_feature_modules(app_root, paths),
         "short_version": plist_string(plist, "CFBundleShortVersionString"),
         "sparkle_public_key": plist_string(plist, "SUPublicEDKey"),
         "supported_platforms": supported_platforms,
@@ -609,7 +640,7 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
             "size": size,
         },
         "binaries": binaries,
-        "schema_version": 1,
+        "schema_version": 2,
         "source": {"http": headers, "url": source_url},
         "verification": {
             "archive_test": "passed",

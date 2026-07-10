@@ -116,7 +116,8 @@ is neither read nor copied.
 The useful reference qualities are lifecycle discipline, capability reporting,
 provenance, atomic installation, XDG isolation, and tests. The target does not
 inherit Electron, ASAR rewriting, a local server, runtime compilers, a polling
-updater, privileged input injection, or proprietary assets. This gives the
+updater, privileged input injection, or proprietary UI assets. The separately
+documented, unmodified public app icon is the only branding exception. This gives the
 Linux application a smaller and more auditable trusted computing base while
 preserving the production behaviors users actually notice: reliable launch,
 single-instance commands, persistent sessions, native menus and dialogs,

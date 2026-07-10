@@ -2,9 +2,10 @@
 
 ## Purpose
 
-This repository builds `chatgpt-work-linux`, a community native Linux shell for
-the public ChatGPT web service. It does not port, patch, or redistribute the
-official macOS binary. Keep the application visibly labeled as unofficial.
+This repository builds `chatgpt-work-linux`, a community native Linux client
+for the ChatGPT service and its Work surface. It does not port, patch, or
+redistribute the official macOS executable. Keep the application visibly
+labeled as unofficial.
 
 ## Architecture rules
 
@@ -22,8 +23,11 @@ official macOS binary. Keep the application visibly labeled as unofficial.
   journald/stderr diagnostics.
 - Shell scripts are build/install tooling only. Use `set -euo pipefail`, quote
   paths, publish outputs atomically, and preserve the active install on failure.
-- The official DMG is ignored metadata-only reference input. Never execute,
-  patch, bundle, or extract proprietary UI assets from it.
+- The official DMG is ignored reference input. Never execute, patch, or bundle
+  its binaries or proprietary UI. The sole asset exception is the unmodified
+  public ChatGPT application icon requested for desktop identification; record
+  its artifact/hash provenance and OpenAI ownership, and keep the application
+  visibly labeled as unofficial.
 
 ## Source map
 

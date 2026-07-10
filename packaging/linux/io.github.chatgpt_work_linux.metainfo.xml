@@ -1,21 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>io.github.chatgpt_work_linux</id>
-  <name>chatgpt-work-linux</name>
+  <name>chatgpt-work-linux (Unofficial)</name>
   <summary>Lightweight community Linux shell for the ChatGPT Work web experience</summary>
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
   <description>
     <p>
-      chatgpt-work-linux provides an isolated, lightweight GTK/WebKit desktop
+      The chatgpt-work-linux application provides an isolated, lightweight GTK/WebKit desktop
       window for the official ChatGPT web service, plus native Linux global
       shortcuts, screenshot capture, downloads, permissions, diagnostics, and
       Chromium/browser compatibility fallbacks.
     </p>
     <p>
       This is an independent community project. It is not produced, supported,
-      or endorsed by OpenAI and does not include OpenAI application binaries or
-      artwork.
+      or endorsed by OpenAI and does not include OpenAI application binaries.
+      The desktop icon is the unmodified official ChatGPT application icon;
+      OpenAI owns the icon and all ChatGPT marks.
     </p>
   </description>
   <launchable type="desktop-id">io.github.chatgpt_work_linux.desktop</launchable>

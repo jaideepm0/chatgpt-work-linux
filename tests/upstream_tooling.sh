@@ -107,6 +107,14 @@ if [ "$mode" = "l" ]; then
         'Path = ChatGPT Installer/ChatGPT.app/Contents/Frameworks/libswiftCompatibilitySpan.dylib' \
         'Folder = -' \
         "Size = $swift_size" \
+        '' \
+        'Path = ChatGPT Installer/ChatGPT.app/Contents/Frameworks/ChatGPT.framework/Versions/A/Resources/ChatGPTAutomation_ChatGPTAutomation.bundle' \
+        'Folder = +' \
+        'Size = ' \
+        '' \
+        'Path = ChatGPT Installer/ChatGPT.app/Contents/Frameworks/ChatGPT.framework/Versions/A/Resources/ChatGPTPresentation_ChatGPTPresentation.bundle' \
+        'Folder = +' \
+        'Size = ' \
         ''
     case "$(basename -- "$dmg")" in
         electron.dmg)
@@ -173,7 +181,7 @@ import json
 import sys
 
 snapshot = json.load(open(sys.argv[1], encoding="utf-8"))
-assert snapshot["schema_version"] == 1
+assert snapshot["schema_version"] == 2
 assert snapshot["artifact"]["size"] == int(sys.argv[2])
 assert snapshot["artifact"]["archive_format"] == "dmg"
 assert len(snapshot["artifact"]["sha256"]) == 64
@@ -183,6 +191,16 @@ assert snapshot["application"]["short_version"] == "1.2026.160"
 assert snapshot["application"]["minimum_system_version"] == "14.0"
 assert snapshot["application"]["electron_markers"] == []
 assert "Mach-O" in snapshot["application"]["native_markers"]
+assert snapshot["application"]["observed_feature_modules"] == [
+    {
+        "bundle": "ChatGPTAutomation_ChatGPTAutomation.bundle",
+        "capability": "automations",
+    },
+    {
+        "bundle": "ChatGPTPresentation_ChatGPTPresentation.bundle",
+        "capability": "presentations",
+    },
+]
 assert snapshot["source"]["http"]["etag"] == "fixture-etag"
 assert snapshot["source"]["http"]["content_length"] == int(sys.argv[2])
 assert snapshot["verification"]["artifact_executed"] is False

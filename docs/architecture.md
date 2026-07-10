@@ -64,7 +64,7 @@ GTK GApplication ─── profile-scoped single instance on KDE Wayland
              https://chatgpt.com/
 
 optional developer-only lane:
-official HTTPS DMG → bounded atomic cache → metadata-only inspector → JSON
+official HTTPS DMG → bounded atomic cache → structural metadata inspector → JSON
 ```
 
 ## Runtime modules
@@ -180,6 +180,14 @@ systemd-run --user --scope --collect \
 The loaded web service owns chats, Work tasks, connectors, Codex, documents,
 presentations, search, and account/server rollouts. The Linux shell supplies
 only OS integration.
+
+The July 2026 Work-capable artifact contains structural bundle markers for
+automations, connectors, project connectors, a file library, presentations,
+sites, text/writing surfaces, action review, code execution, data
+visualization, meetings, and desktop integration. These markers establish the
+capability map, but do not expose portable code or a supported private API.
+They are therefore compatibility observations, not components copied into the
+Linux runtime.
 
 - File uploads use WebKit's native chooser.
 - Downloads and completion notifications are native.

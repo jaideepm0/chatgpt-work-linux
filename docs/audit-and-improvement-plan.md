@@ -72,9 +72,11 @@ observed `1.2026.183` is newer, but the incident reinforces these rules:
 
 OpenAI's current [Terms of Use](https://openai.com/policies/terms-of-use/)
 prohibit modifying/distributing the Service and reverse engineering underlying
-components. The DMG is therefore metadata-only reference material: it is
-ignored, never executed, patched, bundled, or used as a source of proprietary
-assets. The installed app is clearly labeled as a community project.
+components. The DMG is therefore reference material: it is ignored and its
+binaries are never executed, patched, or bundled. The only included artifact
+is the unmodified public ChatGPT app icon requested for desktop identification,
+with hash provenance and OpenAI ownership recorded. The installed app is
+clearly labeled as a community project.
 
 ## Prioritized roadmap
 
@@ -103,6 +105,10 @@ Next release candidates:
    approval, and no background accessibility scraping.
 4. Signed package repositories, SBOM, reproducible-build comparison, and
    release provenance.
+5. Work capability parity in reviewed slices: explicit local-file context,
+   browser integration, IDE context/diff review, and scheduled-work desktop
+   notifications. Every slice requires a supported service surface, a visible
+   preview, per-action approval, byte/time limits, and a fail-closed policy.
 
 Completed after the native baseline:
 

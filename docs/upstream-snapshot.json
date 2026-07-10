@@ -22,6 +22,60 @@
       "Mach-O",
       "Swift runtime"
     ],
+    "observed_feature_modules": [
+      {
+        "bundle": "ChatGPTADAVisualization_ChatGPTADAVisualization.bundle",
+        "capability": "data_visualization"
+      },
+      {
+        "bundle": "ChatGPTAutomation_ChatGPTAutomation.bundle",
+        "capability": "automations"
+      },
+      {
+        "bundle": "ChatGPTCodeExecution_ChatGPTCodeExecution.bundle",
+        "capability": "code_execution"
+      },
+      {
+        "bundle": "ChatGPTConnectors_ChatGPTConnectors.bundle",
+        "capability": "connectors"
+      },
+      {
+        "bundle": "ChatGPTDesktopCommon_ChatGPTDesktopCommon.bundle",
+        "capability": "desktop_integration"
+      },
+      {
+        "bundle": "ChatGPTFileLibrary_ChatGPTFileLibrary.bundle",
+        "capability": "file_library"
+      },
+      {
+        "bundle": "ChatGPTPresentation_ChatGPTPresentation.bundle",
+        "capability": "presentations"
+      },
+      {
+        "bundle": "ChatGPTProjectConnectors_ChatGPTProjectConnectors.bundle",
+        "capability": "project_connectors"
+      },
+      {
+        "bundle": "ChatGPTReviewAction_ChatGPTReviewAction.bundle",
+        "capability": "action_review"
+      },
+      {
+        "bundle": "ChatGPTSites_ChatGPTSites.bundle",
+        "capability": "sites"
+      },
+      {
+        "bundle": "ChatGPTTextEditor_ChatGPTTextEditor.bundle",
+        "capability": "text_editor"
+      },
+      {
+        "bundle": "ChatGPTWritingBlocks_ChatGPTWritingBlocks.bundle",
+        "capability": "writing_blocks"
+      },
+      {
+        "bundle": "Hive_Meeting.bundle",
+        "capability": "meetings"
+      }
+    ],
     "short_version": "1.2026.183",
     "sparkle_public_key": "IktUdD7h3A+E0F0nYHibnVnGZ7ZgdyTHAi4C6tLo/0c=",
     "supported_platforms": [
@@ -154,7 +208,7 @@
       "size": 275056
     }
   ],
-  "schema_version": 1,
+  "schema_version": 2,
   "source": {
     "http": {
       "accept_ranges": "bytes",
