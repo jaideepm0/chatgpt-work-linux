@@ -73,12 +73,13 @@ Runtime:
 Arch Linux packages:
 
 ```bash
-sudo pacman -S --needed gtk3 webkit2gtk-4.1 xdg-desktop-portal cargo-cyclonedx
+sudo pacman -S --needed gtk3 webkit2gtk-4.1 xdg-desktop-portal cargo-cyclonedx jq
 ```
 
 Build requirements are Rust/Cargo, `pkg-config`, and the package-managed
-`cargo-cyclonedx` tool for release SBOM generation. Python and 7-Zip are used
-only by the optional upstream metadata inspector, never to launch the app.
+`cargo-cyclonedx` and `jq` tools for release SBOM generation. Python and 7-Zip
+are used only by the optional upstream metadata inspector, never to launch the
+app.
 
 ## Build, run, and install
 

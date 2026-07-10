@@ -40,6 +40,7 @@ package-flatpak:
 sbom:
 	mkdir -p dist
 	SOURCE_DATE_EPOCH=0 CARGO_NET_OFFLINE=true cargo cyclonedx --format json --spec-version 1.5 --override-filename chatgpt-work-linux.cdx --all --target x86_64-unknown-linux-gnu --quiet
+	bash scripts/normalize-sbom.sh chatgpt-work-linux.cdx.json '$(CURDIR)'
 	mv -f chatgpt-work-linux.cdx.json dist/chatgpt-work-linux.cdx.json
 
 install-user:

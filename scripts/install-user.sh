@@ -59,6 +59,7 @@ SOURCE_DATE_EPOCH=0 CARGO_NET_OFFLINE=true cargo cyclonedx \
   --all \
   --target x86_64-unknown-linux-gnu \
   --quiet
+bash "$repo_root/scripts/normalize-sbom.sh" "$sbom" "$repo_root"
 version=$($binary --version | awk '{print $2}')
 if [[ ! $version =~ ^[0-9A-Za-z][0-9A-Za-z._+-]*$ ]]; then
   printf 'refusing unsafe application version: %q\n' "$version" >&2

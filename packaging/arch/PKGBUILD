@@ -11,7 +11,7 @@ optdepends=(
   'google-chrome: Chromium compatibility engine'
   'chromium: Chromium compatibility engine'
 )
-makedepends=('cargo' 'cargo-cyclonedx')
+makedepends=('cargo' 'cargo-cyclonedx' 'jq')
 provides=('chatgpt-work-linux')
 options=('!debug' 'strip')
 source=("$pkgname-$pkgver.tar.gz")
@@ -29,6 +29,7 @@ build() {
     cargo cyclonedx --format json --spec-version 1.5 \
       --override-filename chatgpt-work-linux.cdx --all \
       --target x86_64-unknown-linux-gnu --quiet
+  bash scripts/normalize-sbom.sh "$PWD/chatgpt-work-linux.cdx.json" "$PWD"
 }
 
 check() {
