@@ -39,8 +39,11 @@ final="$versions/$release_id"
 stage="$versions/.stage-$release_id-$$"
 
 cleanup() {
-  rm -rf -- "$stage" \
-    "$base/.current-new-$$" "$base/.previous-new-$$" \
+  if [[ -e $stage ]]; then
+    chmod -R u+w -- "$stage" 2>/dev/null || true
+    rm -rf -- "$stage"
+  fi
+  rm -f -- "$base/.current-new-$$" "$base/.previous-new-$$" \
     "$bin_dir/.chatgpt-work-linux-new-$$" \
     "$desktop_dir/.io.github.chatgpt_work_linux.desktop-new-$$" \
     "$icon_dir/.io.github.chatgpt_work_linux.png-new-$$" \
@@ -120,6 +123,7 @@ for candidate in "$versions"/*; do
   [[ -d $candidate && ! -L $candidate ]] || continue
   resolved=$(readlink -f "$candidate" 2>/dev/null || true)
   if [[ -n $resolved && $resolved != "$active" && $resolved != "$previous" ]]; then
+    chmod -R u+w -- "$candidate"
     rm -rf -- "$candidate"
   fi
 done
