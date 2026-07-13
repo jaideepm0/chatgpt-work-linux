@@ -11,7 +11,7 @@ Date: 2026-07-13
 | Size | 615,738,501 bytes |
 | SHA-256 | `c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca` |
 | Bundle/runtime | `com.openai.codex`, Electron 42.1.0 |
-| Adapter | `bce8d36f72eda4cabfbf32a95054e6fc79737722` |
+| Adapter | `a8dbcb954f6108070b5633afef69792bf12f5507` |
 
 The snapshot was produced by bounded structural inspection. No Mach-O binary
 was executed. Exact component and privacy-key inventories are recorded in
@@ -49,6 +49,8 @@ For the current build:
 - The Chromium sandbox remains enabled.
 - The generated localhost renderer server is removed.
 - Quick Chat is lazy rather than prewarmed at startup.
+- Wayland input is portal-only; direct uinput/`ydotool` paths are disabled and
+  targeted keyboard actions recheck compositor focus immediately before input.
 - Portal denial/cancellation and missing optional capabilities must fail
   visibly without weakening sandbox, TLS, or origin checks.
 

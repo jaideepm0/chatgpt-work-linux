@@ -9,7 +9,10 @@ Date: 2026-07-13
 - Restored the correct official `ChatGPT.dmg` endpoint and enforced a greater
   than 500 MiB gate plus exact snapshot size/hash validation.
 - Updated against external adapter commit
-  `bce8d36f72eda4cabfbf32a95054e6fc79737722` without modifying that checkout.
+  `a8dbcb954f6108070b5633afef69792bf12f5507` from the ignored cache; no adapter
+  checkout is vendored in this repository. The build applies its documented,
+  drift-detecting portal-only Wayland input transform to that disposable cache
+  copy.
 - Replaced the public-web wrapper as the default build/install target with the
   unified ChatGPT Electron application plane.
 - Removed the generated Python localhost server and sandbox-disable flags.
@@ -17,6 +20,11 @@ Date: 2026-07-13
   packaged `app://` origin.
 - Removed the unconditional Quick Chat prewarm responsible for the blank
   startup overlay while retaining on-demand Quick Chat.
+- Made all five Linux Computer Use UI/backend integration patches mandatory so
+  an installed backend cannot be filtered out as unavailable in local tasks.
+- Forced Wayland pointer/keyboard input through XDG portals, blocked direct
+  input fallbacks, and added last-moment target focus verification to fail
+  closed when another window takes focus during portal setup.
 - Added reproducible build, exact adapter provenance, immutable user install,
   rollback, doctor output, and a Wayland sandbox/origin/process smoke test.
 

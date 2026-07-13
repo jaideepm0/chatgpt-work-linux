@@ -35,6 +35,114 @@ assert report["sandboxDisabled"] is False
 assert report["rendererOrigin"] == "app://"
 PY
 
+runtime_root=$(dirname -- "$(readlink -f -- "$launcher")")
+computer_use_backend="$runtime_root/resources/plugins/openai-bundled/plugins/computer-use/bin/codex-computer-use-linux"
+[[ -x $computer_use_backend ]] || {
+  printf 'smoke-wayland: Computer Use backend is missing or not executable: %s\n' "$computer_use_backend" >&2
+  exit 1
+}
+rg -a -Fq \
+  'ydotool is disabled on Wayland; a consented XDG Remote Desktop portal session is required' \
+  "$computer_use_backend" || {
+  printf 'smoke-wayland: Computer Use backend is missing the portal-only Wayland guard\n' >&2
+  exit 1
+}
+computer_use_doctor=$(
+  XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
+    "$launcher" computer-use-doctor
+)
+python3 - "$computer_use_doctor" <<'PY'
+import json
+import sys
+
+report = json.loads(sys.argv[1])
+readiness = report["readiness"]
+assert report["platform"]["os"] == "linux"
+assert report["platform"]["xdg_session_type"] == "wayland"
+assert report["capabilities"]["preferred"]["input"] == "portal"
+assert report["capabilities"]["preferred"]["screenshot"] == "portal"
+assert report["capabilities"]["preferred"]["window_control"] != "none"
+if report["platform"]["desktop_session"] == "plasma":
+    assert report["capabilities"]["preferred"]["window_control"] == "kwin"
+assert readiness["can_register_mcp_tools"] is True
+assert readiness["can_build_accessibility_tree"] is True
+assert readiness["can_query_windows"] is True
+assert readiness["can_focus_windows"] is True
+assert readiness["can_send_development_input"] is True
+assert readiness["blockers"] == []
+assert report["portals"]["remote_desktop"]["ok"] is True
+assert report["portals"]["screencast"]["ok"] is True
+assert report["portals"]["screenshot"]["ok"] is True
+PY
+
+python3 - "$computer_use_backend" <<'PY'
+import json
+import select
+import subprocess
+import sys
+import time
+
+backend = sys.argv[1]
+process = subprocess.Popen(
+    [backend, "mcp"],
+    stdin=subprocess.PIPE,
+    stdout=subprocess.PIPE,
+    stderr=subprocess.PIPE,
+    text=True,
+    bufsize=1,
+)
+assert process.stdin is not None
+assert process.stdout is not None
+
+def send(message):
+    process.stdin.write(json.dumps(message, separators=(",", ":")) + "\n")
+    process.stdin.flush()
+
+def receive(response_id, timeout=10):
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        ready, _, _ = select.select([process.stdout], [], [], max(0, deadline - time.monotonic()))
+        if not ready:
+            break
+        line = process.stdout.readline()
+        if not line:
+            break
+        message = json.loads(line)
+        if message.get("id") == response_id:
+            return message
+    raise RuntimeError(f"Computer Use MCP response {response_id} timed out")
+
+try:
+    send({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-06-18",
+            "capabilities": {},
+            "clientInfo": {"name": "chatgpt-work-wayland-smoke", "version": "1"},
+        },
+    })
+    initialized = receive(1)
+    assert "result" in initialized, initialized
+    send({"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}})
+    send({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}})
+    tools = receive(2)["result"]["tools"]
+    names = {tool["name"] for tool in tools}
+    required = {
+        "activate_window", "click", "doctor", "get_app_state", "press_key",
+        "screenshot", "scroll", "type_text",
+    }
+    assert required <= names, sorted(required - names)
+finally:
+    process.terminate()
+    try:
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait(timeout=3)
+PY
+
 env -u DISPLAY \
   CODEX_OZONE_PLATFORM=wayland \
   CHATGPT_WORK_CODEX_HOME="$temporary/data/codex-home" \
@@ -103,4 +211,4 @@ rg -q 'initialize_handshake_result .*outcome=success' "$log_file" || {
   exit 1
 }
 
-printf 'wayland_smoke=passed electron_pid=%s renderer_origin=app:// sandbox=enabled\n' "$electron_pid"
+printf 'wayland_smoke=passed electron_pid=%s renderer_origin=app:// sandbox=enabled computer_use=ready\n' "$electron_pid"

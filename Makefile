@@ -20,7 +20,7 @@ test:
 	env PATH=/usr/bin:/bin cargo test --locked
 	bash tests/upstream_tooling.sh
 	bash tests/runtime_hardening.sh
-	python3 -m py_compile scripts/configure-work-runtime.py scripts/patch-work-asar.py scripts/inspect-upstream.py
+	python3 -m py_compile scripts/configure-work-runtime.py scripts/patch-computer-use-wayland.py scripts/patch-work-asar.py scripts/validate-work-patch-report.py scripts/inspect-upstream.py
 
 check:
 	env PATH=/usr/bin:/bin cargo fmt --all -- --check

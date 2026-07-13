@@ -23,6 +23,16 @@ download.
   and the application cannot regress to the development URL.
 - Removes the unconditional startup Quick Chat prewarm that created a second
   blank window on Linux; Quick Chat remains available when requested.
+- Requires the adapter's Linux Computer Use UI, install-flow, native-app
+  discovery, and backend-gate patches; a skipped capability patch fails the
+  build instead of rendering the plugin as unavailable.
+- Routes Computer Use pointer and keyboard actions through the user-consented
+  Wayland Remote Desktop portal. The build disables `ydotool` and direct
+  `/dev/uinput` fallbacks on Wayland, and revalidates a targeted window after
+  portal setup immediately before keyboard injection.
+- Refuses to publish an artifact if the Computer Use executable, MCP manifest,
+  plugin manifest, or backend self-check is missing, even when the external
+  adapter reports only a warning.
 - Keeps ChatGPT Work state in an isolated XDG profile, bounds launcher logs,
   validates native dependencies, and installs immutable releases atomically.
 
@@ -40,7 +50,7 @@ time.
 | Size | `615,738,501` bytes |
 | SHA-256 | `c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca` |
 | Electron | `42.1.0` |
-| Adapter commit | `bce8d36f72eda4cabfbf32a95054e6fc79737722` |
+| Adapter commit | `a8dbcb954f6108070b5633afef69792bf12f5507` |
 
 The downloader rejects non-HTTPS redirects, unexpected hosts, artifacts at or
 below 500 MiB, size drift, hash drift, and invalid DMGs. The complete observed
@@ -81,7 +91,13 @@ Launch or inspect it with:
 ```bash
 chatgpt-work-linux
 chatgpt-work-linux doctor --json
+chatgpt-work-linux computer-use-doctor
 ```
+
+`computer-use-doctor` checks the native Wayland portal, AT-SPI, window-targeting,
+input, and MCP-tool backends without starting the UI. If the desktop needs a
+one-time portal or accessibility setup, run the explicitly user-initiated
+`chatgpt-work-linux computer-use-setup` command.
 
 The desktop entry is `ChatGPT Work Linux (Unofficial)`. Uninstalling preserves
 the profile unless purge is explicitly requested:
@@ -99,7 +115,8 @@ make refresh-upstream
 ```
 
 Review snapshot and adapter drift before committing a new version. Required
-patch misses are fatal; optional misses remain visible in the patch report.
+patch misses are fatal, including every Computer Use capability patch;
+optional misses remain visible in the patch report.
 Build reports are stored under `.work/reports/<version>/` and are ignored by
 Git.
 

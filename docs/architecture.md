@@ -33,6 +33,9 @@ repository hardening pass
   - Chromium sandbox flags retained
   - Wayland-only Ozone default
   - startup blank-window prewarm removed
+  - Linux Computer Use UI and capability gates required
+  - final renderer Computer Use platform predicate verified byte-for-byte
+  - portal-only Wayland input with last-moment target-focus verification
   - XDG profile isolation and bounded diagnostics
         |
         v
@@ -43,6 +46,22 @@ Every transformation has an exact-match invariant. A missing or ambiguous
 required adapter patch, ASAR anchor, expected launcher anchor, native library,
 artifact hash, or sandbox/origin assertion stops publication and leaves the
 active install unchanged.
+
+Computer Use is not enabled by merely staging an MCP binary. The build opts
+into and requires the adapter's renderer availability, feature, install-flow,
+native desktop-app discovery, and plugin-gate patches. The local backend then
+selects AT-SPI, the compositor window backend, and an available user-consented
+Wayland portal independently. A healthy backend with a missing UI patch is a
+release failure.
+
+On Wayland, pointer, literal-text, and keyboard actions use consented XDG
+Remote Desktop portal sessions. The build applies an exact, drift-detecting
+source patch to the external adapter: it disables uinput and `ydotool` on
+Wayland, removes environment overrides that could bypass portal selection, and
+rechecks targeted-window focus after portal setup immediately before input.
+Targeted KDE text uses portal keysyms instead of preparing the clipboard before
+the final focus check. No X11 input implementation or `/dev/uinput` permission
+is required by the installed product.
 
 ## Runtime boundaries
 

@@ -3,7 +3,7 @@
 Date: 2026-07-13
 
 The external checkout at `~/programs/codex-desktop-linux` was fetched and
-reviewed at `bce8d36f72eda4cabfbf32a95054e6fc79737722`. It is not vendored,
+reviewed at `a8dbcb954f6108070b5633afef69792bf12f5507`. It is not vendored,
 submoduled, or copied into this repository. `prepare-compat-adapter.sh` requires
 a clean checkout, resolves a commit, and creates an immutable cache archive by
 commit hash.
@@ -31,6 +31,8 @@ The generated adapter launcher was not accepted unchanged:
 | Python localhost server and `ELECTRON_RENDERER_URL` | Remove server and force packaged `app://` renderer |
 | `--no-sandbox` and `--disable-gpu-sandbox` | Remove and reject both flags at build/smoke time |
 | Startup Quick Chat prewarm | Exact same-size ASAR patch to keep it lazy |
+| Linux Computer Use rollout remains unavailable in the final renderer | Exact same-size host/feature gate patch plus semantic validation |
+| Wayland input can select uinput/`ydotool` and keyboard focus can change after portal setup | Exact-source transform forces the XDG portal, blocks unsafe fallbacks, and revalidates targeted focus immediately before input |
 | Broad/default runtime identity | Isolated `chatgpt-work-linux` XDG profile and stable desktop ID |
 | Potentially growing launcher log | Bound and trim the operational log |
 | Mutable install replacement | Immutable content-addressed versions and atomic symlink switch |

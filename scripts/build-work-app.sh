@@ -37,6 +37,8 @@ actual_sha256=$(sha256sum "$dmg" | awk '{print $1}')
 
 adapter=$("$repo_root/scripts/prepare-compat-adapter.sh")
 adapter_commit=$(<"$adapter/.chatgpt-work-adapter-commit")
+python3 "$repo_root/scripts/patch-computer-use-wayland.py" \
+  "$adapter/computer-use-linux/src/server.rs"
 report_dir=${CHATGPT_WORK_REPORT_DIR:-"$repo_root/.work/reports/$version"}
 cargo_target_dir=${CHATGPT_WORK_CARGO_TARGET_DIR:-"$adapter/target"}
 parent=$(dirname -- "$output")
@@ -49,6 +51,7 @@ mkdir -p -- "$parent" "$report_dir"
 rm -rf -- "$stage"
 
 printf 'Building ChatGPT Work %s with adapter %s...\n' "$version" "${adapter_commit:0:12}" >&2
+CODEX_LINUX_ENABLE_COMPUTER_USE_UI=1 \
 CODEX_APP_ID=io.github.chatgpt_work_linux \
 CODEX_APP_DISPLAY_NAME='ChatGPT Work Linux (Unofficial)' \
 CODEX_INSTALL_DIR="$stage" \
@@ -61,6 +64,8 @@ CARGO_TARGET_DIR="$cargo_target_dir" \
 
 node "$adapter/scripts/ci/validate-patch-report.js" \
   "$report_dir/patch-report.json" --profile upstream-build
+python3 "$repo_root/scripts/validate-work-patch-report.py" \
+  "$report_dir/patch-report.json"
 python3 "$repo_root/scripts/patch-work-asar.py" "$stage/resources/app.asar"
 python3 "$repo_root/scripts/configure-work-runtime.py" \
   "$stage/start.sh" --upstream-version "$version"
@@ -71,6 +76,17 @@ mv -- "$stage/electron" "$stage/chatgpt-work-linux-bin"
 [[ -x $stage/start.sh ]] || fail 'launcher is missing'
 [[ -s $stage/resources/app.asar ]] || fail 'patched app.asar is missing'
 [[ -f $stage/content/webview/index.html ]] || fail 'packaged renderer is missing'
+computer_use_plugin="$stage/resources/plugins/openai-bundled/plugins/computer-use"
+computer_use_backend="$computer_use_plugin/bin/codex-computer-use-linux"
+[[ -x $computer_use_backend ]] || fail 'Linux Computer Use backend is missing or not executable'
+[[ -s $computer_use_plugin/.mcp.json ]] || fail 'Linux Computer Use MCP manifest is missing'
+[[ -s $computer_use_plugin/.codex-plugin/plugin.json ]] || fail 'Linux Computer Use plugin manifest is missing'
+"$computer_use_backend" --help | rg -q 'codex-computer-use-linux mcp' || \
+  fail 'Linux Computer Use backend self-check failed'
+rg -a -Fq \
+  'ydotool is disabled on Wayland; a consented XDG Remote Desktop portal session is required' \
+  "$computer_use_backend" || \
+  fail 'Linux Computer Use portal-only Wayland guard is missing'
 [[ ! -e $stage/.codex-linux/webview-server.py ]] || fail 'local HTTP server was packaged'
 if rg -n -- '--no-sandbox|--disable-gpu-sandbox|start_webview_server$|export ELECTRON_RENDERER_URL=' "$stage/start.sh" >/dev/null; then
   fail 'launcher contains a sandbox bypass or local-server renderer path'

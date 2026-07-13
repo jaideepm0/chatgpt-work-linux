@@ -43,6 +43,18 @@ case ${{1:-}} in
     fi
     exit 0
     ;;
+  computer-use-doctor|computer-use-setup)
+    runtime_root=$(dirname -- "$(readlink -f -- "${{BASH_SOURCE[0]}}")")
+    computer_use_backend="$runtime_root/resources/plugins/openai-bundled/plugins/computer-use/bin/codex-computer-use-linux"
+    if [[ ! -x $computer_use_backend ]]; then
+      printf 'ChatGPT Work Linux: Computer Use backend is missing or not executable: %s\n' "$computer_use_backend" >&2
+      exit 1
+    fi
+    if [[ ${{1:-}} == computer-use-doctor ]]; then
+      exec "$computer_use_backend" doctor
+    fi
+    exec "$computer_use_backend" setup
+    ;;
 esac
 """
     source = replace_once(source, prelude_anchor, prelude, "identity prelude")
