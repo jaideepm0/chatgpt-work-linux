@@ -2,12 +2,21 @@
 
 ## Scope
 
-The reference tree at `/home/jaideep/programs/codex-desktop-linux` was reviewed
-read-only at commit `f3836c9c225cb0a2868f05bf0bc031f20c57c56f`. The review
-covered acquisition, DMG extraction, ASAR patching, optional features, native
-module rebuilding, the launcher, application lifecycle, portals, updater,
-packaging, install/rollback, diagnostics, and tests. Its 329 main-patcher tests
-and 379 optional-feature tests passed at that revision.
+The external reference tree at `/home/jaideep/programs/codex-desktop-linux` was
+reviewed read-only at local commit
+`f3836c9c225cb0a2868f05bf0bc031f20c57c56f` and its fetched
+`origin/main` commit `e174ccf56fb05c8b73bb049e1b97f719713fdc1b` (2026-07-12).
+The review covered acquisition, DMG extraction, ASAR patching, optional
+features, native module rebuilding, launcher lifecycle, portals, updater,
+packaging, install/rollback, diagnostics, and tests. No copy of that repository
+is retained here.
+
+The current reference exposes 25 opt-in Linux feature manifests and a native
+Computer Use MCP with AT-SPI observation, screenshots, compositor-specific
+window discovery/focus, and click/scroll/drag/key/text actions through portals,
+`uinput`, or `ydotool`. Those are reference-project capabilities, not evidence
+about the standalone ChatGPT artifact and not code selected for this client's
+default runtime.
 
 The two projects have different upstream constraints. Codex Desktop is an
 Electron application whose authenticated app-server protocol can be retained

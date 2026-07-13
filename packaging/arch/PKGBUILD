@@ -61,8 +61,8 @@ package() {
     "$pkgdir/usr/share/doc/chatgpt-work-linux/audit-and-improvement-plan.md"
   install -Dm644 "$root/docs/work-upstream-assessment.md" \
     "$pkgdir/usr/share/doc/chatgpt-work-linux/work-upstream-assessment.md"
-  install -Dm644 "$root/docs/unified-electron-assessment.md" \
-    "$pkgdir/usr/share/doc/chatgpt-work-linux/unified-electron-assessment.md"
+  install -Dm644 "$root/docs/upstream-feature-audit.md" \
+    "$pkgdir/usr/share/doc/chatgpt-work-linux/upstream-feature-audit.md"
   install -Dm644 "$root/assets/ICON-PROVENANCE.md" \
     "$pkgdir/usr/share/doc/chatgpt-work-linux/icon-provenance.md"
   install -Dm644 "$root/docs/codex-desktop-linux-review.md" \

@@ -4,7 +4,7 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
 
-OFFICIAL_URL="https://persistent.oaistatic.com/sidekick/public/ChatGPT.dmg"
+OFFICIAL_URL="https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
 URL="$OFFICIAL_URL"
 OUTPUT="$REPO_DIR/ChatGPT.dmg"
 CACHE_DIR="${CHATGPT_WORK_CACHE_DIR:-$REPO_DIR/.cache/upstream}"

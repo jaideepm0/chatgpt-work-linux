@@ -1,4 +1,12 @@
-# Unified ChatGPT artifact assessment
+# Superseded Electron compatibility experiment
+
+> Historical note: this document analyzes the separate 561 MB Codex/Electron
+> artifact that was briefly evaluated as a runtime. It is not the official
+> standalone ChatGPT Work artifact and is not the production architecture.
+> The governing design is `architecture.md`; current standalone-product
+> evidence is in `upstream-feature-audit.md`. The imported compatibility source
+> and its build path have been removed from this repository and reachable Git
+> history.
 
 ## Decision
 
@@ -174,4 +182,3 @@ the Codex desktop host. OpenAI's
 describes the desktop app as a command center for parallel agents and long
 running work. Those public descriptions align with the local bundle inventory
 and are the acceptance target; undocumented private service behavior is not.
-

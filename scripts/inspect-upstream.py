@@ -24,7 +24,7 @@ from typing import Any, Iterable
 from urllib.parse import urlsplit
 
 
-OFFICIAL_URL = "https://persistent.oaistatic.com/sidekick/public/ChatGPT.dmg"
+OFFICIAL_URL = "https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
 ALLOWED_UPSTREAM_URLS = frozenset({OFFICIAL_URL})
 MAX_PLIST_BYTES = 2 * 1024 * 1024
 MAX_BINARY_BYTES = 512 * 1024 * 1024
@@ -50,6 +50,11 @@ FEATURE_BUNDLE_MARKERS = {
     "ChatGPTWritingBlocks_ChatGPTWritingBlocks.bundle": "writing_blocks",
     "Hive_Meeting.bundle": "meetings",
 }
+
+# Report names only. These inventories are structural drift evidence; they do
+# not extract localized strings, assets, executable code, or private service
+# contracts from the application.
+COMPONENT_SUFFIXES = (".app", ".appex", ".systemextension", ".xpc")
 
 
 class InspectionError(RuntimeError):
@@ -477,6 +482,65 @@ def observed_feature_modules(app_root: str, archive_paths: list[str]) -> list[di
     return observed
 
 
+def resource_bundle_names(app_root: str, archive_paths: list[str]) -> list[str]:
+    """Return the exact top-level ChatGPT framework resource-bundle names."""
+    prefix = f"{app_root}/Contents/Frameworks/ChatGPT.framework/Versions/A/Resources/"
+    names: set[str] = set()
+    for path in archive_paths:
+        if not path.startswith(prefix):
+            continue
+        relative = path[len(prefix) :]
+        name = relative.split("/", 1)[0]
+        if name.endswith(".bundle"):
+            names.add(name)
+    return sorted(names)
+
+
+def embedded_component_names(app_root: str, archive_paths: list[str]) -> list[str]:
+    """Inventory nested signed-component names without extracting them."""
+    prefix = f"{app_root}/"
+    names: set[str] = set()
+    for path in archive_paths:
+        if not path.startswith(prefix):
+            continue
+        for part in PurePosixPath(path[len(prefix) :]).parts:
+            if part.endswith(COMPONENT_SUFFIXES):
+                names.add(part)
+    return sorted(names)
+
+
+def bundled_plugin_names(app_root: str, archive_paths: list[str]) -> list[str]:
+    """Inventory exact bundled plugin directory names without reading payloads."""
+    prefixes = (
+        f"{app_root}/Contents/Resources/plugins/openai-bundled/plugins/",
+        f"{app_root}/Contents/Resources/plugins/",
+    )
+    names: set[str] = set()
+    for path in archive_paths:
+        for prefix in prefixes:
+            if not path.startswith(prefix):
+                continue
+            relative = path[len(prefix) :]
+            name = relative.split("/", 1)[0]
+            if name and name != "openai-bundled":
+                names.add(name)
+            break
+    return sorted(names)
+
+
+def privacy_usage_description_keys(plist: dict[str, Any]) -> list[str]:
+    """Record declared macOS privacy categories, never their prose values."""
+    return sorted(
+        key
+        for key, value in plist.items()
+        if isinstance(key, str)
+        and key.startswith("NS")
+        and key.endswith("UsageDescription")
+        and isinstance(value, str)
+        and value
+    )
+
+
 def inspect(args: argparse.Namespace) -> dict[str, Any]:
     source_url = validate_source_url(args.source_url)
     dmg = args.dmg.expanduser().resolve()
@@ -616,6 +680,7 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
         "build_timestamp": plist_string(plist, "OAIBuildTimestamp"),
         "bundle_identifier": plist_string(plist, "CFBundleIdentifier"),
         "bundle_version": plist_string(plist, "CFBundleVersion"),
+        "bundled_plugins": bundled_plugin_names(app_root, paths),
         "commit_hash": plist_string(plist, "OAICommitHash"),
         "display_name": plist_string(plist, "CFBundleDisplayName"),
         "electron_markers": electron_markers,
@@ -623,7 +688,10 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
         "main_executable": main_executable,
         "minimum_system_version": plist_string(plist, "LSMinimumSystemVersion"),
         "native_markers": native_markers,
+        "embedded_components": embedded_component_names(app_root, paths),
         "observed_feature_modules": observed_feature_modules(app_root, paths),
+        "privacy_usage_description_keys": privacy_usage_description_keys(plist),
+        "resource_bundles": resource_bundle_names(app_root, paths),
         "short_version": plist_string(plist, "CFBundleShortVersionString"),
         "sparkle_public_key": plist_string(plist, "SUPublicEDKey"),
         "supported_platforms": supported_platforms,
@@ -640,7 +708,7 @@ def inspect(args: argparse.Namespace) -> dict[str, Any]:
             "size": size,
         },
         "binaries": binaries,
-        "schema_version": 2,
+        "schema_version": 3,
         "source": {"http": headers, "url": source_url},
         "verification": {
             "archive_test": "passed",

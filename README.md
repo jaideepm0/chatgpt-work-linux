@@ -1,162 +1,156 @@
 # chatgpt-work-linux
 
-`chatgpt-work-linux` is an unofficial community compatibility build of the
-unified ChatGPT Work/Codex desktop application for Linux. It runs the real
-portable application plane observed in ChatGPT `26.707.31428`: local
-app-server, projects, tasks, plugins, Sites, scheduled work, browser-use,
-document tools, and the unified Work renderer. It is not a `chatgpt.com` web
-wrapper.
+`chatgpt-work-linux` is an unofficial community Linux desktop client for the
+public ChatGPT service, including server-delivered Work features available to
+the signed-in account. The default runtime is a native Rust/GTK/WebKitGTK
+application; installed Chromium and the system browser are compatibility
+fallbacks.
 
-This is not an OpenAI product and is not endorsed or supported by OpenAI. The
-project does not publish the official DMG or a rebuilt proprietary binary;
-users build locally from their own artifact. OpenAI owns the ChatGPT name,
-marks, application resources, and icon. The desktop entry and product metadata
-keep this build visibly labeled “Unofficial.”
+This is not an OpenAI product and is not endorsed or supported by OpenAI. It
+does not redistribute, patch, translate, or execute the official macOS
+application and does not use a private ChatGPT API. OpenAI owns the ChatGPT
+name, marks, and unmodified public application icon used for desktop
+identification. Application and package metadata visibly say “Unofficial.”
 
-The lightweight public-web client remains a separate installed application,
-`chatgpt-desktop-linux`. The former Rust/WebKit implementation of this repo is
-preserved at tag `rust-webkit-baseline-v0.1.0`.
+## Implemented
 
-## Current input and provenance
+- Wayland-first Rust/GTK shell with one shared WebKit context and no Electron,
+  Node, Python, bundled browser, or local HTTP server in the default runtime.
+- Persistent isolated XDG profiles and an ephemeral `--private` profile.
+- Strict navigation policy: trusted ChatGPT/authentication pages stay inside,
+  unrelated HTTPS links open externally, and unsafe schemes are blocked.
+- Native settings for engine, performance, privacy, global shortcut, and
+  background behavior, saved atomically with mode 0600.
+- Per-request microphone, camera, screen, location, notification, and
+  cross-site sign-in-storage decisions with trusted-sender checks.
+- Portal global shortcut and user-initiated Screenshot flow; screenshots are
+  copied to the clipboard for an explicit paste into the composer.
+- Native upload chooser, sanitized collision-safe downloads, bounded recovery,
+  safe mode, Chromium/browser fallbacks, and structured diagnostics.
+- Atomic user-local install with one rollback version, Arch packaging, Flatpak,
+  SBOM output, and profile-preserving uninstall.
 
-The reviewed local input is `ChatGPT-work.dmg`:
+General control of other desktop applications is intentionally not exposed to
+remote web content. The current unified upstream artifact does contain a
+bundled Computer Use service, but importing its privileged bridge would violate
+this client's trust boundary. The evidence and a safe staged strategy are in
+[the upstream feature audit](docs/upstream-feature-audit.md).
 
-- ChatGPT version `26.707.31428`, bundle `5059`
-- Electron `42.1.0` / Chromium 150
-- size `561,015,842` bytes
-- SHA-256 `6f67af7e2f934093ab8afebcec11374d40c8db8f9100fb6620f24155401d8319`
+## Why the macOS binary is reference-only
 
-The build fails closed if that hash or any required compatibility invariant
-does not match. [The artifact assessment](docs/unified-electron-assessment.md)
-and [machine-readable snapshot](docs/upstream-snapshot.json) record the audit.
-No Mach-O executable is run.
+The current official ChatGPT `26.707.62119` artifact is a 615 MB unified
+Chat/Work/Codex Electron application for ARM64 macOS. It contains `app.asar`,
+bundled plugins, and Apple-only helpers. Repository policy treats that artifact
+as reference input: its proprietary application plane is not executed,
+translated, patched, or included in Linux packages.
 
-The icon at `assets/chatgpt-work-linux.png` is the exact 2048×2048 ChatGPT icon
-from the supplied artifact. Its hash and trademark disclaimer are recorded in
-[ICON-PROVENANCE.md](assets/ICON-PROVENANCE.md).
+The bounded inspector records archive integrity, public bundle metadata,
+Mach-O headers, exact resource-bundle names, privacy-category keys, and hashes.
+It never executes the app or extracts proprietary UI. The observed artifact is
+615,738,501 bytes with SHA-256
+`c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca`.
 
-## Architecture and safeguards
+## Requirements
 
-- Native Wayland/Ozone is selected automatically on KDE Wayland; X11 is not
-  required. KWin supplies the standard titlebar and window controls.
-- Electron identifies as packaged and uses its privileged, secure `app://`
-  renderer. There is no Python server or localhost port. The current upstream
-  protocol resolver requires both its embedded and staged renderer layouts;
-  both are retained until an exact resolver patch can remove one safely.
-- Chromium renderer and GPU sandboxes stay enabled. The launcher never adds
-  `--no-sandbox` or disables TLS/web security.
-- ChatGPT Work owns isolated XDG profile, browser, cache, and state paths. An
-  inherited `CODEX_HOME` from another app is deliberately ignored; advanced
-  users may explicitly set `CHATGPT_WORK_CODEX_HOME`.
-- Single-instance ownership is acquired before cache/plugin mutations or
-  app-server startup. Repeated launches hand off to the running process.
-- Hidden Quick Chat/prompt windows are lazy by default, updater polling is
-  disabled, diagnostics go to stderr/journald, and file logging is bounded and
-  opt-in with `CODEX_LINUX_FILE_LOG=1`.
-- Production builds contain a pinned Node runtime but remove build headers,
-  npm, Corepack, and the duplicate webview after native modules are built.
-- User installation is immutable and atomic, retains one rollback release,
-  and preserves profiles unless uninstall is given `--purge`.
+Runtime:
 
-Remote web content does not receive an additional Linux shell bridge. Native
-actions remain in the audited Electron main process, with Linux portal and
-sender checks supplied by the compatibility engine.
+- Linux x86_64 (the Rust source is portable to aarch64)
+- GTK 3.24 and WebKitGTK 4.1 / WebKitGTK 2.40+
+- XDG Desktop Portal and the desktop-specific backend
+- PipeWire/GStreamer media plugins for screen sharing and voice
 
-## Build and install
+Build requirements are Rust/Cargo and `pkg-config`. Python 3, 7-Zip, and curl
+are used only by the optional upstream reference inspector.
 
-The repository expects the user-supplied file at `./ChatGPT-work.dmg`.
-
-Build dependencies include Bash, Node.js, Python 3, curl, unzip, tar, a modern
-7-Zip with APFS support, make, g++, and the native libraries required by
-Electron modules. The application also needs the current Codex CLI for its
-initial local app-server:
+On Arch Linux:
 
 ```bash
-npm install -g @openai/codex
+sudo pacman -S --needed gtk3 webkit2gtk-4.1 xdg-desktop-portal cargo-cyclonedx jq
 ```
 
-Then run:
+## Build, validate, and run
 
 ```bash
 make check
 make build
-./.work/chatgpt-work-app/start.sh doctor --json
+./target/release/chatgpt-work-linux doctor --json
+make run
+```
+
+Install or package:
+
+```bash
 make install-user
-chatgpt-work-linux doctor --json
+make package-pacman
+make package-flatpak
+make sbom
+```
+
+The user install lives under `~/.local/opt/chatgpt-work-linux`, exposes
+`~/.local/bin/chatgpt-work-linux`, switches releases atomically, and retains
+the previous release for rollback.
+
+## Usage
+
+```bash
 chatgpt-work-linux
-```
-
-The verified build is published at `.work/chatgpt-work-app`. The user install
-lives under `~/.local/opt/chatgpt-work-linux`, with an atomic launcher at
-`~/.local/bin/chatgpt-work-linux` and desktop metadata under `~/.local/share`.
-
-Useful recovery and launch modes:
-
-```bash
-chatgpt-work-linux --new-chat
-chatgpt-work-linux --quick-chat
+chatgpt-work-linux --companion
+chatgpt-work-linux --toggle
 chatgpt-work-linux --safe-mode
-chatgpt-work-linux --wayland
-chatgpt-work-linux --disable-gpu
-CODEX_LINUX_FILE_LOG=1 chatgpt-work-linux
+chatgpt-work-linux --engine chromium
+chatgpt-work-linux --engine browser
+chatgpt-work-linux --profile team
+chatgpt-work-linux --private
+chatgpt-work-linux doctor --json
+chatgpt-work-linux paths
+chatgpt-work-linux print-config
+chatgpt-work-linux clear-cache --yes
 ```
 
-`--safe-mode` keeps Wayland when the session is Wayland and disables GPU
-acceleration. `--x11` is an explicit troubleshooting fallback only.
+Copy [config.example.toml](config.example.toml) to the path printed by
+`chatgpt-work-linux paths`. Profiles do not share cookies, storage, cache, or
+single-instance ownership.
 
-Uninstall while preserving profiles:
+Auto mode begins with WebKitGTK. Google blocks OAuth in embedded user agents,
+so the app can hand the whole isolated profile to an installed Chromium app
+window. It does not copy or decrypt cookies and never disables browser
+security.
+
+## Refresh the official reference snapshot
+
+This is a developer provenance operation, not part of normal build or launch:
 
 ```bash
-make uninstall-user
+make refresh-upstream
+./scripts/refresh-upstream-snapshot.sh --check
+./scripts/refresh-upstream-snapshot.sh --offline
+chatgpt-work-linux inspect-upstream ./ChatGPT.dmg
 ```
 
-Remove profiles as well:
-
-```bash
-./scripts/uninstall-user.sh --purge
-```
-
-## Validation
-
-`make check` validates the preserved Rust baseline and upstream tooling, all
-compatibility patch fixtures, shell syntax, desktop metadata, and AppStream
-metadata. `make build` additionally verifies the exact DMG, enforces every
-required patch, compiles native Electron 42 modules, checks shared libraries,
-confirms the official icon, rejects sandbox-disable switches, and writes a
-complete installed-file checksum manifest.
-
-Runtime acceptance covers native Wayland startup, packaged `app://` loading,
-single-instance handoff, safe mode, app-server handshake, sign-in persistence,
-renderer sandboxing, clean shutdown, idle process/memory measurements, and a
-two-core/768 MiB constrained lane. Some opt-in Work capabilities download a
-large signed Linux primary runtime; their first-run peak is tracked separately
-from the base shell.
+The downloader is restricted to the compiled official HTTPS URL, bounds size
+and time, safely resumes matching partials, validates the DMG, writes the
+proprietary artifact only to ignored paths, and atomically publishes metadata.
 
 ## Documentation
 
-- [Architecture and security assessment](docs/unified-electron-assessment.md)
-- [Audit and improvement roadmap](docs/audit-and-improvement-plan.md)
-- [Current validation report](docs/validation-report.md)
-- [Complete codex-desktop-linux review](docs/codex-desktop-linux-review.md)
-- [Upstream snapshot](docs/upstream-snapshot.json)
+- [Upstream feature and Linux parity audit](docs/upstream-feature-audit.md)
+- [ChatGPT Work artifact assessment](docs/work-upstream-assessment.md)
+- [Architecture and security design](docs/architecture.md)
+- [Current upstream snapshot](docs/upstream-snapshot.json)
+- [Reference codebase review](docs/codex-desktop-linux-review.md)
+- [Improvement roadmap](docs/audit-and-improvement-plan.md)
+- [Validation evidence](docs/validation-report.md)
+- [Flatpak sandbox audit](docs/flatpak-sandbox.md)
 - [Security policy](SECURITY.md)
-
-OpenAI’s public [ChatGPT release notes](https://help.openai.com/en/articles/6825453-chatgpt-release-notes)
-describe AppShots, goal mode, browser improvements, and remote control. Its
-[Codex app announcement](https://openai.com/index/introducing-the-codex-app/)
-describes the multi-agent desktop command center that this local Linux
-compatibility build targets.
 
 ## Known limits
 
-- This exact build supports Linux x86-64. It deliberately avoids
-  `target-cpu=native` and AVX-only output for older systems.
-- Apple-only Handoff, Apple Events, macOS Accessibility, and native Apple app
-  integrations are not imitated.
-- Account flags and service entitlements still control feature availability.
-- A newly isolated profile may perform a large one-time download of OpenAI’s
-  Linux primary runtime when an advanced Work feature first needs it.
-
-## Disclamier
-
-- Most work here is done by GPT-5.6 Sol running inside codex-cli hence mostly it's unverified as long as this line exists you should use it at your own discretion. This repo will be updated once verification is done and robust, productionized codebase is out.
+- The service can change independently of this community shell, and account
+  flags still control product availability.
+- Google OAuth requires the Chromium/browser handoff; email sign-in can remain
+  in WebKitGTK.
+- Apple Events, Handoff, macOS Accessibility, and native Apple app integrations
+  are not imitated.
+- Local app context and input automation require a separate threat model,
+  visible preview, per-action approval, and portal-scoped implementation. They
+  are not implemented by scraping or injecting input into the desktop.

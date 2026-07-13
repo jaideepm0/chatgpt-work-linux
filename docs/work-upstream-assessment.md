@@ -2,77 +2,70 @@
 
 ## Verified product and artifact
 
-OpenAI describes ChatGPT Work as a new agent that gathers context, creates
-documents, presentations, spreadsheets, sites, reports, and analyses, can run
-or monitor delegated work, and asks before taking actions. OpenAI says it is
-available on macOS desktop first, with desktop providing deeper access to
-local files, apps, browser access, and Codex.
+The current ChatGPT download page describes one desktop application containing
+Chat, ChatGPT Work, and Codex. Its macOS link resolves to:
 
-The official desktop page currently links the macOS button to:
+`https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg`
 
-`https://persistent.oaistatic.com/sidekick/public/ChatGPT.dmg`
+The observation made on 2026-07-13 is:
 
-The observation made on 2026-07-10 is:
+- compressed DMG: 615,738,501 bytes;
+- SHA-256: `c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca`;
+- ETag: `0x8DEE0AB667193CC`;
+- version: `26.707.62119`, bundle `5211`;
+- product bundle: `com.openai.codex` with ChatGPT display identity;
+- runtime: ARM64 macOS Electron application with `app.asar`;
+- 10,777 bounded archive entries and 24 selected Mach-O headers;
+- the artifact was never executed.
 
-- compressed DMG: 78,575,566 bytes;
-- expanded DMG payload: 203,461,632 bytes;
-- SHA-256: `49b33cadd2ec659b76352384f7ebd332a7ec7029663365a9f720f4a251d3b8d1`;
-- version: `1.2026.183` (`1783607847`), commit `3dab2ed0d5`;
-- product bundle: `com.openai.chat`;
-- runtime: ARM64 native Swift/AppKit/SwiftUI with `ChatGPT.framework`;
-- no Electron runtime, `app.asar`, or portable web application bundle.
-
-The 561,015,842-byte file at
-`/home/jaideep/programs/codex-desktop-linux/Codex.dmg` is the Codex artifact.
-It is not the ChatGPT Work download. The mutable official ChatGPT URL and the
-local file match the response ETag, Last-Modified value, Content-Length, and
-Content-MD5 observed during this assessment.
+The older
+`https://persistent.oaistatic.com/sidekick/public/ChatGPT.dmg` endpoint still
+serves the 78.6 MB native ChatGPT Classic application. It is not the current
+unified Work/Codex desktop download.
 
 ## Structural Work markers
 
-The bounded metadata inspector now records exact resource-bundle names without
-extracting UI resources or executing the application. The current artifact
-contains markers for:
+The bounded inspector records exact archive structure without extracting the
+proprietary renderer. The unified artifact includes bundled plugin directories
+for:
 
-- automations and action review;
-- connectors and project connectors;
-- file library, presentations, sites, text editor, and writing blocks;
-- data visualization and code execution;
-- meetings and desktop integration.
+- browser and Chrome integration;
+- Computer Use;
+- Deep Research;
+- record and replay;
+- Sites and visualization;
+- LaTeX support.
 
-These markers corroborate the public Work description. They do not establish
-account entitlement, reveal a supported API, or make the Apple-native modules
-portable. See `docs/upstream-snapshot.json` for the deterministic machine-readable
-inventory.
+Nested components include the Computer Use service, installer, client, and
+lock-screen guardian, four Electron helper applications, and Sparkle updater
+components. The plist declares Apple Events, audio capture, camera, desktop
+folder, location, and microphone usage categories.
+
+These observations establish that Computer Use and browser integration are
+part of the unified desktop distribution. They do not authorize execution of
+the Apple helpers, reveal a supported native protocol, or make privileged IPC
+safe to expose to remote web content.
 
 ## Architecture decision
 
-Codex Desktop can be adapted because its upstream application is Electron and
-ships a portable renderer plus app-server protocol. ChatGPT Work is different:
-its desktop implementation is native Apple code and its private service
-contracts are not a supported integration surface. Rehosting that executable
-on Linux is neither technically viable nor a robust product architecture.
+Although the current artifact contains a portable Electron application plane,
+this repository keeps Rust/GTK/WebKitGTK as its primary runtime. The macOS DMG
+remains ignored reference input: no Mach-O executable is run, no proprietary
+renderer is patched or bundled, and no Apple privileged helper is translated.
 
-The Linux product therefore keeps a small Rust/GTK controller and the public
-ChatGPT service as the remote product plane. Linux-native Work parity is added
-only in independently testable capability slices:
+Linux parity is implemented as independently testable capability slices:
 
-1. server-delivered Work UI and artifacts through the signed-in public service;
-2. explicit file selection/upload and safe native download/open flows;
-3. user-initiated portal screenshot, screen sharing, voice, and global shortcut;
-4. future browser/IDE context only through a documented, previewed,
-   least-privilege integration with per-action approval;
-5. package-manager updates, isolated profiles, and bounded diagnostics.
-
-Remote content never receives a general native bridge. A future integration
-must have typed requests, an allowlisted capability, visible context preview,
-hard byte/time limits, cancellation, and an approval record. Unsupported or
-ambiguous requests fail closed.
+1. server-delivered Chat/Work UI through the signed-in public service;
+2. explicit file selection/upload and safe native download handling;
+3. user-initiated portal screenshot, screen sharing, voice, and shortcut;
+4. future observation-only local context with preview and per-transfer consent;
+5. a separately threat-modeled input-automation phase, never a remote-page
+   shell or unrestricted input bridge;
+6. package-manager updates, isolated profiles, and bounded diagnostics.
 
 ## Branding boundary
 
-At the user's request the Linux desktop entry uses the unmodified official
-ChatGPT application icon so the service is recognizable. The application name
-and About dialog remain explicitly “Unofficial,” and README/AppStream metadata
-state that OpenAI owns the icon and ChatGPT marks and does not endorse this
-project. No other proprietary UI assets are included.
+The unmodified public ChatGPT icon is the sole permitted upstream asset used
+for desktop identification. Application name, About dialog, desktop entry, and
+package metadata remain visibly “Unofficial.” No other proprietary application
+resource is shipped.

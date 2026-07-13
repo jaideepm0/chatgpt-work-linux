@@ -1,111 +1,84 @@
 # Audit and improvement plan
 
-Date: 2026-07-10
+Date: 2026-07-13
 
-This is the active roadmap for the unified Electron Work build. The former
-Rust/WebKit roadmap is complete and preserved in Git history and at
-`rust-webkit-baseline-v0.1.0`; the lightweight client continues separately as
-`chatgpt-desktop-linux`.
+## Current baseline
 
-## Reviewed baseline
+The production baseline is the Rust/GTK/WebKitGTK client. The separate
+`codex-desktop-linux` checkout was reviewed for provenance, lifecycle, portal,
+packaging, and failure-handling lessons, but its source is not vendored and its
+Electron/ASAR runtime is not part of this product.
 
-The upstream input is ChatGPT `26.707.31428` / Electron `42.1.0`, exact SHA-256
-`6f67af7e2f934093ab8afebcec11374d40c8db8f9100fb6620f24155401d8319`.
-It is byte-identical to the contemporary artifact reviewed by the sibling
-`codex-desktop-linux` project. The mature compatibility engine was imported at
-reference commit `f3836c9c225cb0a2868f05bf0bc031f20c57c56f`, with its MIT
-license, provenance, deterministic patch registry, and tests.
+The official unified ChatGPT reference is `26.707.62119`, build `5211`,
+SHA-256
+`c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca`.
+It is a 615,738,501-byte ARM64 macOS Electron app. The schema-3 snapshot
+inventories eight bundled plugin families, 11 embedded app/XPC components, and
+six privacy usage categories without executing the artifact.
 
-The first exact-artifact audit found five required breaks: primary window
-options, native titlebar, avatar-overlay input, tray fallback, and the
-main-process aggregate. Each now has an exact `26.707` semantic fixture. The
-full patch suite passes 333 tests and the current artifact has zero required
-failures. Optional drift remains reported rather than guessed.
+## Completed in this audit
 
-## Remediated production risks
+- Removed `compat/codex-desktop-linux` from every reachable Git snapshot and
+  pruned the copied objects; the external checkout remains the reference.
+- Removed build/test coupling to the copied tree and restored Rust/GTK as the
+  default build, run, doctor, install, and validation path.
+- Corrected the official endpoint from the 78 MB ChatGPT Classic download to
+  the 615 MB unified Chat/Work/Codex desktop artifact linked by the current
+  ChatGPT download page.
+- Added an exhaustive structural resource-bundle inventory, privacy-category
+  keys, and embedded-component names to the bounded inspector.
+- Added an atomic refresh/check script with network and offline modes.
+- Separated standalone-product evidence from optional features implemented by
+  the reference Linux project.
 
-| Priority | Reference behavior | Implemented response |
-|---|---|---|
-| P0 | Launcher always added `--no-sandbox` and `--disable-gpu-sandbox`. | Both switches were removed and the build rejects their return. Renderer command lines contain `--enable-sandbox`. |
-| P0 | Development renderer was extracted and served by Python over localhost. | Packaged mode is forced with a product-named executable; Electron's secure `app://` scheme loads the ASAR directly. No TCP listener or Python runtime remains. |
-| P0 | Shared `~/.codex` state could be opened by Work and Codex concurrently. | Work ignores inherited generic `CODEX_HOME` and owns an isolated XDG data root. Explicit override uses `CHATGPT_WORK_CODEX_HOME`. |
-| P0 | Cache/plugin mutation could precede single-instance ownership and lock timeout could continue. | The cold-start lock precedes every prelaunch/cache mutation and timeout fails closed. |
-| P1 | A permission repair loop recursively scanned every 100 ms for 30 seconds. | The monitor was removed; startup performs one bounded reconciliation under the lock. |
-| P1 | The updater injected periodic polling and package-manager queries. | Both updater descriptors remain auditable but return `skipped-disabled`; package/user transactions own updates. |
-| P1 | Hidden prompt/home/thread/Quick Chat windows were prewarmed. | Linux defaults to lazy prompt-window creation unless the user explicitly enables it. |
-| P1 | File logs grew without a bound. | stderr/journald is default; the opt-in launcher file rotates at 4 MiB with one predecessor. |
-| P1 | Wayland auto mode disabled GPU compositing or fell back to X11. | KDE Wayland selects native Ozone/Wayland with GPU; safe mode remains on Wayland and disables GPU only for recovery. |
-| P1 | Installed image retained ~84 MiB of Node build material and served a staged renderer over localhost. | Node headers, npm, Corepack, build documentation, Python server, and TCP listener are absent. The embedded/staged renderer duplication is retained because an exact test proved that `26.707` resolves assets from both layouts. |
-| P1 | Active installs could be deleted before a replacement was known-good. | User installs are checksummed, immutable, content-addressed, atomically switched, and retain one previous release. |
+## P0 — release gates
 
-## Current acceptance gates
+1. Run `make check`, `make build`, and
+   `target/release/chatgpt-work-linux doctor --json` for every handoff.
+2. Complete deliberate KDE Wayland and X11 QA for single-instance/toggle,
+   offline recovery, external link, upload/download, permission deny/allow,
+   screenshot cancel/success, safe mode, and Chromium fallback.
+3. Inspect Arch and Flatpak contents. Confirm no DMG, Mach-O executable,
+   Electron, Node, Python server, sandbox-disable flag, or copied reference tree
+   ships; uninstall must preserve profiles unless purge is explicit.
+4. Add GUI-level permission tests around trusted sender, display-vs-camera
+   media requests, capture indicator, and Settings persistence.
 
-Every release must pass:
+## P1 — native parity and robustness
 
-1. exact DMG hash and bounded structural inspection;
-2. zero required patch failures and all compatibility regression tests;
-3. Electron/native ABI and shared-library validation;
-4. no sandbox/TLS/web-security disable switch;
-5. exact official-icon provenance and visible unofficial product labeling;
-6. native KDE Wayland startup with a standard compositor titlebar;
-7. packaged `app://` renderer, no localhost listener, one primary renderer at
-   settled idle, and a successful app-server handshake;
-8. isolated state, single-instance handoff, safe-mode recovery, clean child
-   shutdown, and immutable install rollback;
-9. two-core/768 MiB constrained behavior, measured separately for settled base
-   shell and one-time primary-runtime installation.
+1. Add capability diagnostics that distinguish service-delivered Work surfaces
+   from local host capabilities and explain portal/backend failures.
+2. Add a settings “restore safe defaults” transaction only after tests prove it
+   leaves profiles, cookies, and service data intact.
+3. Expand screenshot QA across KDE/GNOME portal backends, multi-monitor scale,
+   denial, cancellation, and clipboard ownership loss.
+4. Benchmark cold/warm start, PSS/RSS, idle CPU, and crash recovery under two
+   cores and 768 MiB; retain generic x86_64 output.
+5. Add CI `refresh-upstream-snapshot.sh --check` in a controlled network lane,
+   while keeping ordinary builds fully offline and reproducible.
 
-## Next targets
+## P2 — local context research
 
-### P0 — release blockers
-
-- Complete interactive live-service QA: Google/email sign-in callback, file
-  upload/download, external URL, microphone/camera, screen-share portal,
-  screenshot cancellation/success, offline recovery, and permission deny/allow.
-- Add an automated post-build ASAR invariant audit for every privileged sender,
-  external URL route, download path, and remote webview preload decision.
-- Verify the primary-runtime downloader under interruption, hash mismatch,
-  disk-full, and 768 MiB pressure; require atomic resume and cleanup of stale
-  archives.
-- Produce a native Arch package from the already-built immutable tree without
-  embedding the source DMG, and inspect it with `pacman -Qkk` after install.
-
-### P1 — robustness and older hardware
-
-- Replace the remaining 3,000-line compatibility launcher with a small typed
-  Rust supervisor while preserving the audited argument and recovery behavior.
-- Make bundled plugin synchronization version-marker based and fully atomic so
-  unchanged cold starts perform no recursive copies.
-- Patch and test the `app://` asset resolver so the ~189 MiB renderer can be
-  stored once; never remove either current layout without a complete UI smoke.
-- Add renderer/app-server crash injection with bounded restart backoff and
-  process-group cleanup assertions.
-- Record cold/warm start latency, PSS/RSS, renderer count, GPU memory, idle CPU,
-  and disk footprint in a repeatable benchmark artifact; prevent regressions.
-- Validate software-rendering safe mode on old Intel/AMD drivers and native
-  Wayland fractional scaling at 1.0/1.25/1.5/2.0.
-
-### P2 — product integration
-
-- Finish KDE portal flows for global Quick Chat, AppShots, file selection,
-  notifications, and computer-use approval without unrestricted global input.
-- Add explicit capability diagnostics for browser-use, computer-use, plugins,
-  Sites, documents, presentations, and remote control; unavailable features
-  should explain the missing dependency rather than silently disappear.
-- Build signed repository metadata, reproducible rebuild comparison, SPDX or
-  CycloneDX inventory for Linux-added components, and release attestations.
-- Add Debian/RPM/AppImage outputs only after the native Arch flow and runtime
-  sandbox invariants are identical.
+1. Prototype observation-only app context outside the default runtime. Require
+   explicit target selection, a redacted preview, strict size/time limits,
+   approval for each transfer, cancellation, and an audit record.
+2. Keep the prototype inaccessible to remote WebKit content. Use a typed,
+   versioned, session-scoped protocol only with a trusted local agent surface.
+3. Threat-model AT-SPI metadata, terminal titles, clipboard content,
+   multi-monitor screenshots, focus spoofing, and portal grant persistence.
+4. Consider input automation only after observation-only acceptance. Require
+   verified target focus, action preview, per-action approval, emergency stop,
+   revocation, and no unrestricted `uinput`, `ydotool`, or shell bridge.
 
 ## Non-goals
 
-- No X11 requirement, custom titlebar, Electron sandbox bypass, TLS bypass,
-  remote-page shell bridge, polling updater, or unbounded log.
-- No imitation of Apple Events, Handoff, macOS Accessibility, Calendar,
-  Contacts, or Reminders.
-- No publication of the DMG, rebuilt proprietary app, account cookies, or
-  official branding without the prominent unofficial disclaimer.
+- No Electron/ASAR rehosting, macOS binary translation, proprietary UI copy,
+  private-service emulation, or publication of the DMG.
+- No remote-page native IPC/shell bridge, sandbox/TLS/web-security bypass,
+  polling updater, or unbounded file log.
+- No imitation of Handoff, Apple Events, macOS Accessibility, or Apple-native
+  Calendar/Contacts/Reminders integrations.
 
-The detailed architecture and exact compatibility evidence are in
-[architecture.md](architecture.md) and
-[unified-electron-assessment.md](unified-electron-assessment.md).
+Detailed evidence is in `upstream-feature-audit.md`,
+`work-upstream-assessment.md`, `codex-desktop-linux-review.md`, and
+`upstream-snapshot.json`.

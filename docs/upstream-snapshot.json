@@ -10,11 +10,34 @@
     ],
     "build_timestamp": null,
     "bundle_identifier": "com.openai.codex",
-    "bundle_version": "5059",
+    "bundle_version": "5211",
+    "bundled_plugins": [
+      "browser",
+      "chrome",
+      "computer-use",
+      "deep-research",
+      "latex",
+      "record-and-replay",
+      "sites",
+      "visualize"
+    ],
     "commit_hash": null,
     "display_name": "ChatGPT",
     "electron_markers": [
       "app.asar"
+    ],
+    "embedded_components": [
+      "CUALockScreenGuardian.app",
+      "Codex (Alerts).app",
+      "Codex (GPU).app",
+      "Codex (Renderer).app",
+      "Codex (Service).app",
+      "Codex Computer Use Installer.app",
+      "Codex Computer Use.app",
+      "Downloader.xpc",
+      "Installer.xpc",
+      "SkyComputerUseClient.app",
+      "Updater.app"
     ],
     "implementation": "electron",
     "main_executable": "Contents/MacOS/ChatGPT",
@@ -23,7 +46,16 @@
       "Mach-O"
     ],
     "observed_feature_modules": [],
-    "short_version": "26.707.31428",
+    "privacy_usage_description_keys": [
+      "NSAppleEventsUsageDescription",
+      "NSAudioCaptureUsageDescription",
+      "NSCameraUsageDescription",
+      "NSDesktopFolderUsageDescription",
+      "NSLocationUsageDescription",
+      "NSMicrophoneUsageDescription"
+    ],
+    "resource_bundles": [],
+    "short_version": "26.707.62119",
     "sparkle_public_key": "mNfr1v9t63BfgDtlw4C8lRvSY6uMggIXABDOCi3tS6k=",
     "supported_platforms": [],
     "url_schemes": [
@@ -33,9 +65,9 @@
   "artifact": {
     "archive_format": "dmg",
     "entry_count": 10777,
-    "name": "ChatGPT-work.dmg",
-    "sha256": "6f67af7e2f934093ab8afebcec11374d40c8db8f9100fb6620f24155401d8319",
-    "size": 561015842
+    "name": "ChatGPT.dmg",
+    "sha256": "c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca",
+    "size": 615738501
   },
   "binaries": [
     {
@@ -44,8 +76,8 @@
       ],
       "bits": 64,
       "kind": "dynamic-library",
-      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Codex Framework",
-      "size": 255424704
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.115/Codex Framework",
+      "size": 254335168
     },
     {
       "architectures": [
@@ -53,7 +85,7 @@
       ],
       "bits": 64,
       "kind": "executable",
-      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Helpers/Codex (Alerts).app/Contents/MacOS/Codex (Alerts)",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.115/Helpers/Codex (Alerts).app/Contents/MacOS/Codex (Alerts)",
       "size": 87520
     },
     {
@@ -62,7 +94,7 @@
       ],
       "bits": 64,
       "kind": "executable",
-      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Helpers/Codex (GPU).app/Contents/MacOS/Codex (GPU)",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.115/Helpers/Codex (GPU).app/Contents/MacOS/Codex (GPU)",
       "size": 87520
     },
     {
@@ -71,7 +103,7 @@
       ],
       "bits": 64,
       "kind": "executable",
-      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.115/Helpers/Codex (Renderer).app/Contents/MacOS/Codex (Renderer)",
       "size": 87520
     },
     {
@@ -80,7 +112,7 @@
       ],
       "bits": 64,
       "kind": "executable",
-      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.115/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
       "size": 87520
     },
     {
@@ -89,7 +121,7 @@
       ],
       "bits": 64,
       "kind": "dynamic-library",
-      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Libraries/libEGL.dylib",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.115/Libraries/libEGL.dylib",
       "size": 109520
     },
     {
@@ -98,7 +130,7 @@
       ],
       "bits": 64,
       "kind": "dynamic-library",
-      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Libraries/libGLESv2.dylib",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.115/Libraries/libGLESv2.dylib",
       "size": 6890080
     },
     {
@@ -107,7 +139,7 @@
       ],
       "bits": 64,
       "kind": "dynamic-library",
-      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.101/Libraries/libvk_swiftshader.dylib",
+      "path": "Contents/Frameworks/Codex Framework.framework/Versions/150.0.7871.115/Libraries/libvk_swiftshader.dylib",
       "size": 16525472
     },
     {
@@ -175,7 +207,7 @@
       "bits": 64,
       "kind": "executable",
       "path": "Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService",
-      "size": 18607232
+      "size": 18739648
     },
     {
       "architectures": [
@@ -184,7 +216,7 @@
       "bits": 64,
       "kind": "executable",
       "path": "Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/CUALockScreenGuardian.app/Contents/MacOS/CUALockScreenGuardian",
-      "size": 18180336
+      "size": 18296336
     },
     {
       "architectures": [
@@ -193,7 +225,7 @@
       "bits": 64,
       "kind": "executable",
       "path": "Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/Codex Computer Use Installer.app/Contents/MacOS/Codex Computer Use Installer",
-      "size": 90432
+      "size": 90480
     },
     {
       "architectures": [
@@ -211,7 +243,7 @@
       "bits": 64,
       "kind": "executable",
       "path": "Contents/Resources/plugins/openai-bundled/plugins/computer-use/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
-      "size": 12405632
+      "size": 12521616
     },
     {
       "architectures": [
@@ -220,7 +252,7 @@
       "bits": 64,
       "kind": "executable",
       "path": "Contents/Resources/plugins/openai-bundled/plugins/record-and-replay/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService",
-      "size": 18607232
+      "size": 18739648
     },
     {
       "architectures": [
@@ -229,7 +261,7 @@
       "bits": 64,
       "kind": "executable",
       "path": "Contents/Resources/plugins/openai-bundled/plugins/record-and-replay/Codex Computer Use.app/Contents/SharedSupport/CUALockScreenGuardian.app/Contents/MacOS/CUALockScreenGuardian",
-      "size": 18182384
+      "size": 18298384
     },
     {
       "architectures": [
@@ -238,7 +270,7 @@
       "bits": 64,
       "kind": "executable",
       "path": "Contents/Resources/plugins/openai-bundled/plugins/record-and-replay/Codex Computer Use.app/Contents/SharedSupport/Codex Computer Use Installer.app/Contents/MacOS/Codex Computer Use Installer",
-      "size": 91456
+      "size": 91504
     },
     {
       "architectures": [
@@ -256,13 +288,19 @@
       "bits": 64,
       "kind": "executable",
       "path": "Contents/Resources/plugins/openai-bundled/plugins/record-and-replay/Codex Computer Use.app/Contents/SharedSupport/SkyComputerUseClient.app/Contents/MacOS/SkyComputerUseClient",
-      "size": 12405632
+      "size": 12522640
     }
   ],
-  "schema_version": 2,
+  "schema_version": 3,
   "source": {
-    "http": {},
-    "url": "https://persistent.oaistatic.com/sidekick/public/ChatGPT.dmg"
+    "http": {
+      "accept_ranges": "bytes",
+      "content_length": 615738501,
+      "content_type": "application/x-apple-diskimage",
+      "etag": "0x8DEE0AB667193CC",
+      "last_modified": "Mon, 13 Jul 2026 06:53:09 GMT"
+    },
+    "url": "https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
   },
   "verification": {
     "archive_test": "passed",

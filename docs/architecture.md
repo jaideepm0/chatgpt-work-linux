@@ -2,122 +2,121 @@
 
 ## Decision
 
-`chatgpt-work-linux` is a deterministic Linux rehost of the portable Electron
-application plane in the user-supplied ChatGPT Work `26.707.31428` artifact.
-It is not a `chatgpt.com` wrapper and it does not execute the Mach-O binaries.
-The prior Rust/WebKit shell is preserved at
-`rust-webkit-baseline-v0.1.0` and as the separate
-`chatgpt-desktop-linux` application.
+`chatgpt-work-linux` is a native Rust/GTK controller for the public ChatGPT web
+service. WebKitGTK is the primary renderer. An installed Chromium app window
+and the system browser are explicit compatibility engines. The official macOS
+DMG is ignored reference input and is never executed, translated, patched, or
+included in a Linux package.
 
-The current artifact contains Electron 42.1.0, a portable ASAR, the unified
-Work renderer, app-server integration, plugins, browser/computer-use, Sites,
-AppShots, scheduled tasks, and document runtimes. Rebuilding that application
-plane is the smallest architecture that delivers product parity.
+The official `26.707.62119` app is an ARM64 macOS Electron application with a
+portable ASAR plus proprietary helpers and plugins. Its structure helps detect
+product drift, but repository policy keeps it outside the Linux runtime: no
+ASAR patching, runtime substitution, or native helper execution is permitted.
+See `upstream-feature-audit.md`.
 
-## Build and runtime flow
+## Runtime flow
 
 ```text
-user-supplied DMG (exact SHA-256)
-       │
-       ▼
-bounded APFS extraction ──► structural/provenance report
-       │
-       ▼
-deterministic compatibility descriptors
-  required drift => stop; optional drift => explicit report/disable
-       │
-       ▼
-Electron 42 Linux runtime + prebuilt native modules + patched ASAR
-       │
-       ├── secure packaged app:// renderer
-       ├── standard KWin/compositor titlebar
-       ├── sandboxed Chromium renderers/GPU process
-       ├── isolated XDG Work profile
-       ├── local Codex app-server and lazy feature runtimes
-       └── native Wayland/Ozone, portals, file and permission mediation
+desktop/CLI activation
+        |
+        v
+validated profile + strict config
+        |
+        v
+GApplication single-instance ownership
+        |
+        +--> existing instance: typed activation only
+        |
+        v
+shared profile WebKit context
+        |
+        +--> trusted ChatGPT/auth HTTPS navigation
+        +--> external HTTPS URL -> system browser
+        +--> unsafe/untrusted native request -> deny
+        +--> user upload/download -> chooser/policy
+        +--> media permission -> trusted sender + local policy
+        +--> screenshot/shortcut -> user-initiated XDG portal worker
 ```
 
-The build output is immutable. `install-user.sh` copies it to a
-content-addressed version, validates every file, changes it read-only, then
-atomically switches `current` while retaining `previous`. A failed build or
-copy never replaces the active install.
+No remote page receives a shell, filesystem, process, accessibility, or native
+IPC bridge. Shell scripts are build/install tools only.
 
 ## Security boundaries
 
-1. The local privileged renderer is loaded only from Electron's registered
-   `app://` protocol. `ELECTRON_RENDERER_URL` is cleared. No local HTTP server,
-   TCP port, Python runtime, or mutable development origin exists.
-2. Chromium's renderer and GPU sandboxes remain enabled. The launcher rejects
-   `--no-sandbox` and `--disable-gpu-sandbox` at build time and never disables
-   TLS verification, CSP, or web security.
-3. The patched main process validates privileged senders and keeps remote
-   browser/webview content outside the local renderer trust boundary. Native
-   actions use explicit schemas and platform checks.
-4. Work owns `${XDG_DATA_HOME}/chatgpt-work-linux/codex-home` and matching
-   config/cache/state roots. A generic inherited `CODEX_HOME` is ignored so a
-   terminal, Codex app, and Work cannot concurrently mutate one profile.
-5. The launcher acquires its single-instance lock before prelaunch hooks,
-   plugin/cache reconciliation, app-server startup, or browser state. Lock
-   timeout fails closed.
-6. In-app polling updates are disabled. Updates are explicit local builds and
-   atomic installation transactions. Runtime diagnostics default to
-   stderr/journald; optional files rotate at 4 MiB with one predecessor.
-7. The proprietary artifact and rebuilt application are local inputs/outputs
-   and remain Git-ignored. Only audit metadata and the specifically requested
-   official icon are committed, with an ownership disclaimer.
+1. `src/policy.rs` owns trusted origin/scheme, website-data, and filename
+   decisions. Every policy change requires tests and defaults to denial.
+2. `GApplication` uniqueness is acquired before shared browser state is opened.
+   Each validated profile has separate data, cache, state, and application ID.
+3. Permission requests are accepted only for trusted top-level pages and are
+   subject to local ask/allow/deny policy. Capture state stays visible.
+4. Screenshot and global-shortcut work is isolated in portal workers and begins
+   only after a user action. Portal denial/cancellation is a normal result.
+5. WebKit/Chromium sandboxing, TLS verification, CSP, and web security are never
+   disabled. Chromium arguments are allowlisted.
+6. Configuration and runtime state use private directories and atomic mode-0600
+   files. Diagnostics redact URL path/query data and default to stderr/journald.
+7. Downloads use sanitized unique filenames. Uploads use the desktop chooser;
+   the application never grants a remote page general filesystem access.
+8. Updates are explicit package-manager or atomic user-install transactions.
+   There is no polling updater or unbounded file log.
 
-## Wayland and desktop integration
+## Settings ownership
 
-KDE Wayland is the primary platform. Ozone is set to `wayland`, GPU compositing
-stays enabled, and Electron requests Wayland window decorations. KWin owns the
-titlebar, shadows, scaling, focus, movement, and resizing. `--safe-mode` keeps
-the active Wayland protocol and disables GPU acceleration; `--x11` remains an
-explicit diagnostic fallback, not a requirement.
+The host owns engine selection, performance, media/privacy decisions, portal
+shortcut, and window lifecycle. The ChatGPT service owns account, model,
+memory, custom-instruction, connector, subscription, and product-feature
+settings. Keeping that split prevents stale local replicas and avoids a private
+settings API.
 
-File selection, screen sharing/capture, notifications, external URLs, and
-global input capabilities use Electron/Chromium's Linux integration and XDG
-portals where supported. Portal operations remain user initiated.
+## Computer-use boundary
 
-## Performance model
+The default application provides user-initiated screenshot capture, not general
+computer control. Remote WebKit content cannot enumerate apps, read AT-SPI,
+inject input, or execute commands.
 
-The unified Work product is much heavier than the web-shell baseline, but the
-Linux port removes avoidable overhead:
-
-- the staged renderer is loaded through `app://`, eliminating the Python
-  loopback server and TCP listener; the current upstream resolver still needs
-  both embedded and staged asset layouts, so deduplication remains gated on an
-  exact protocol patch;
-- prompt, home, thread, and Quick Chat windows are created lazily instead of
-  prewarming three hidden Chromium renderers;
-- recursive 100 ms permission monitoring and 30-second updater polling are
-  removed;
-- only one managed Node executable and `node_repl` remain; build headers, npm,
-  Corepack, and documentation are pruned after native module compilation;
-- Wayland GPU compositing is the default, avoiding permanent software
-  rendering and unnecessary framebuffer traffic;
-- generic x86-64 output is retained with no `target-cpu=native` or AVX-only
-  assumptions.
-
-Base-shell measurements are separated from the one-time installation of the
-~405 MiB compressed primary Linux runtime. Runtime extraction can temporarily
-exceed the 768 MiB constrained lane; it must fail cleanly and resume rather
-than corrupting the profile. Once installed, idle acceptance requires one
-visible primary renderer, no hidden Quick Chat renderer, no polling helper,
-and no leaked child after exit.
+A future local-context prototype must be a separate opt-in component and begin
+observation-only: explicit target selection, portal screenshot or bounded
+AT-SPI snapshot, redaction preview, one transfer approval, cancellation, and
+an audit record. Input automation is a later independent decision and cannot
+use unrestricted `uinput`, `ydotool`, or a remote-page bridge.
 
 ## Failure and recovery
 
-- Exact hash mismatch, unsafe extraction, missing required patch, ambiguous
-  patch match, native ABI failure, missing shared library, icon mismatch, or a
-  sandbox-disable flag stops publication.
-- Native module builds happen at build time, never at ordinary launch.
-- The app-server uses the current official Codex CLI and the application's
-  bounded restart behavior. Browser/computer-use and primary runtimes are
-  started lazily.
-- `--safe-mode` is the first GPU recovery route. User data is separate from the
-  immutable binary, so rollback does not roll back or erase conversations.
-- `doctor --json` reports packaged runtime, Wayland, Codex CLI, sandbox policy,
-  renderer origin, and profile isolation without loading the GUI.
+- Invalid config is rejected and safe defaults are used with a visible warning.
+- Unsafe navigation and permission ambiguity fail closed.
+- Web-process failures use bounded recovery; safe mode disables risky rendering
+  features without weakening web security.
+- Google OAuth moves to a user-approved installed Chromium/browser flow; cookies
+  are not copied between engines.
+- A failed build/install never replaces the active release. User profiles are
+  preserved unless purge is explicit.
 
-The exact artifact/patch analysis and remaining drift are recorded in
-[unified-electron-assessment.md](unified-electron-assessment.md).
+## Upstream observation flow
+
+```text
+allowlisted official HTTPS URL
+        |
+        v
+bounded resumable ignored DMG
+        |
+        v
+7-Zip integrity/listing + selected plist/Mach-O headers
+        |
+        v
+deterministic metadata candidate + drift summary
+        |
+        v
+atomic docs/upstream-snapshot.json publication
+```
+
+The inspection path never runs Mach-O code or copies proprietary UI. A new
+bundle name is evidence for review, not permission to add a bridge or loosen a
+policy.
+
+## Performance and portability
+
+The default runtime reuses distribution GTK/WebKit libraries and contains no
+Electron/Node/browser bundle. It is event-driven, has no updater/filesystem
+polling, and avoids hidden prewarmed windows. Release output does not use
+`target-cpu=native` and must pass the two-core/768 MiB lane on older x86_64
+hardware.

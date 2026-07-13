@@ -4,7 +4,7 @@ set -Eeuo pipefail
 REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 INSPECTOR="$REPO_DIR/scripts/inspect-upstream.py"
 FETCHER="$REPO_DIR/scripts/fetch-upstream.sh"
-OFFICIAL_URL="https://persistent.oaistatic.com/sidekick/public/ChatGPT.dmg"
+OFFICIAL_URL="https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf -- "$TMP_DIR"' EXIT HUP INT TERM
 
@@ -35,6 +35,8 @@ plist = {
     ],
     "CFBundleVersion": "1781312926",
     "LSMinimumSystemVersion": "14.0",
+    "NSCameraUsageDescription": "fixture camera description",
+    "NSMicrophoneUsageDescription": "fixture microphone description",
     "OAIBuildTimestamp": "1781313038",
     "OAICommitHash": "7e514a4ed5",
     "SUPublicEDKey": "fixture-public-key",
@@ -181,7 +183,7 @@ import json
 import sys
 
 snapshot = json.load(open(sys.argv[1], encoding="utf-8"))
-assert snapshot["schema_version"] == 2
+assert snapshot["schema_version"] == 3
 assert snapshot["artifact"]["size"] == int(sys.argv[2])
 assert snapshot["artifact"]["archive_format"] == "dmg"
 assert len(snapshot["artifact"]["sha256"]) == 64
@@ -190,7 +192,17 @@ assert snapshot["application"]["architectures"] == ["arm64"]
 assert snapshot["application"]["short_version"] == "1.2026.160"
 assert snapshot["application"]["minimum_system_version"] == "14.0"
 assert snapshot["application"]["electron_markers"] == []
+assert snapshot["application"]["bundled_plugins"] == []
 assert "Mach-O" in snapshot["application"]["native_markers"]
+assert snapshot["application"]["embedded_components"] == []
+assert snapshot["application"]["privacy_usage_description_keys"] == [
+    "NSCameraUsageDescription",
+    "NSMicrophoneUsageDescription",
+]
+assert snapshot["application"]["resource_bundles"] == [
+    "ChatGPTAutomation_ChatGPTAutomation.bundle",
+    "ChatGPTPresentation_ChatGPTPresentation.bundle",
+]
 assert snapshot["application"]["observed_feature_modules"] == [
     {
         "bundle": "ChatGPTAutomation_ChatGPTAutomation.bundle",

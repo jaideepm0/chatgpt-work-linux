@@ -1,43 +1,34 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := build
 
-.PHONY: build build-web-shell check clean doctor install-user package-flatpak package-pacman run sbom smoke-wayland test test-compat test-web-shell uninstall-user
+.PHONY: build check clean doctor install-user package-flatpak package-pacman refresh-upstream run sbom smoke-wayland test uninstall-user
 
 build:
-	bash scripts/build-work-app.sh ./ChatGPT-work.dmg
-
-build-web-shell:
 	env PATH=/usr/bin:/bin \
 		RUSTFLAGS='--remap-path-prefix=$(CURDIR)=/usr/src/chatgpt-work-linux --remap-path-prefix=$(HOME)/.cargo=/usr/src/cargo --remap-path-prefix=$(HOME)/.rustup=/usr/src/rustup' \
 		cargo build --release --locked
 
-run: build
-	./.work/chatgpt-work-app/start.sh
+run:
+	env PATH=/usr/bin:/bin cargo run --locked --
 
-doctor: build
-	./.work/chatgpt-work-app/start.sh doctor
+doctor:
+	env PATH=/usr/bin:/bin cargo run --locked -- doctor
 
 smoke-wayland: build
 	bash scripts/smoke-wayland.sh ./target/release/chatgpt-work-linux
 
-test-web-shell:
+test:
 	env PATH=/usr/bin:/bin cargo test --locked
 	bash tests/upstream_tooling.sh
-
-test-compat:
-	node compat/codex-desktop-linux/scripts/patches/unified-chatgpt-26707.test.js
-	node --test compat/codex-desktop-linux/scripts/patch-linux-window-ui.test.js
-
-test: test-web-shell test-compat
 
 check:
 	env PATH=/usr/bin:/bin cargo fmt --all -- --check
 	env PATH=/usr/bin:/bin cargo clippy --workspace --all-targets --locked -- -D warnings
 	$(MAKE) test
-	bash -n scripts/*.sh compat/codex-desktop-linux/install.sh compat/codex-desktop-linux/launcher/start.sh.template
+	bash -n scripts/*.sh
 	desktop-file-validate packaging/linux/io.github.chatgpt_work_linux.desktop
 	desktop-file-validate packaging/flatpak/io.github.chatgpt_work_linux.desktop
-	appstreamcli validate --pedantic packaging/linux/io.github.chatgpt_work_linux.metainfo.xml
+	appstreamcli validate --pedantic --no-net packaging/linux/io.github.chatgpt_work_linux.metainfo.xml
 	flatpak-builder --show-manifest packaging/flatpak/io.github.chatgpt_work_linux.yml >/dev/null
 
 package-pacman:
@@ -52,7 +43,10 @@ sbom:
 	bash scripts/normalize-sbom.sh chatgpt-work-linux.cdx.json '$(CURDIR)'
 	mv -f chatgpt-work-linux.cdx.json dist/chatgpt-work-linux.cdx.json
 
-install-user: build
+refresh-upstream:
+	bash scripts/refresh-upstream-snapshot.sh
+
+install-user:
 	bash scripts/install-user.sh
 
 uninstall-user:
