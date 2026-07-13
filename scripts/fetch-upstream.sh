@@ -6,13 +6,14 @@ REPO_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
 
 OFFICIAL_URL="https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
 URL="$OFFICIAL_URL"
-OUTPUT="$REPO_DIR/ChatGPT.dmg"
+OUTPUT="$REPO_DIR/ChatGPT-work.dmg"
 CACHE_DIR="${CHATGPT_WORK_CACHE_DIR:-$REPO_DIR/.cache/upstream}"
 METADATA="$CACHE_DIR/upstream-snapshot.json"
 HEADERS_FILE="$CACHE_DIR/response.headers"
 OFFLINE=0
 FORCE=0
 MAX_UPSTREAM_BYTES=$((2 * 1024 * 1024 * 1024))
+MIN_UPSTREAM_BYTES=${CHATGPT_WORK_MIN_UPSTREAM_BYTES:-$((500 * 1024 * 1024))}
 
 CURL_BIN="${CHATGPT_WORK_CURL:-curl}"
 PYTHON_BIN="${CHATGPT_WORK_PYTHON:-python3}"
@@ -22,10 +23,10 @@ usage() {
     cat <<'EOF'
 Usage: scripts/fetch-upstream.sh [OPTIONS]
 
-Fetch and inspect the allowlisted official ChatGPT macOS artifact.
+Fetch and inspect the allowlisted official unified ChatGPT macOS artifact.
 
 Options:
-  --output PATH       DMG destination (default: ./ChatGPT.dmg)
+  --output PATH       DMG destination (default: ./ChatGPT-work.dmg)
   --metadata PATH     deterministic inspection JSON destination
   --headers PATH      raw HEAD response headers destination/input
   --url URL           upstream URL; currently only the official URL is allowed
@@ -96,6 +97,11 @@ case "$URL" in
     https://*) ;;
     *) die "upstream URL must use HTTPS" ;;
 esac
+case "$MIN_UPSTREAM_BYTES" in
+    ''|*[!0-9]*) die "CHATGPT_WORK_MIN_UPSTREAM_BYTES must be an integer" ;;
+esac
+[ "$MIN_UPSTREAM_BYTES" -lt "$MAX_UPSTREAM_BYTES" ] || \
+    die "minimum upstream size must be below the safety limit"
 
 command -v "$PYTHON_BIN" >/dev/null 2>&1 || die "Python 3 not found: $PYTHON_BIN"
 [ -f "$INSPECTOR" ] || die "missing inspector: $INSPECTOR"
@@ -207,6 +213,8 @@ case "$CONTENT_LENGTH" in
     ''|*[!0-9]*) die "upstream response has invalid Content-Length: ${CONTENT_LENGTH:-missing}" ;;
 esac
 [ "$CONTENT_LENGTH" -gt 0 ] || die "upstream artifact is empty"
+[ "$CONTENT_LENGTH" -gt "$MIN_UPSTREAM_BYTES" ] || \
+    die "upstream artifact is too small for the unified Work app: $CONTENT_LENGTH bytes"
 [ "$CONTENT_LENGTH" -le "$MAX_UPSTREAM_BYTES" ] || \
     die "upstream artifact exceeds the $MAX_UPSTREAM_BYTES byte safety limit"
 [ "$CONTENT_TYPE" = "application/x-apple-diskimage" ] || \

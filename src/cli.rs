@@ -8,7 +8,7 @@ use crate::{config::RuntimeEngine, paths::validate_profile_name};
 #[command(
     name = "chatgpt-work-linux",
     version,
-    about = "Lightweight Linux desktop workspace for the ChatGPT web service",
+    about = "Lightweight Linux desktop workspace for the ChatGPT Work web surface",
     disable_help_subcommand = true
 )]
 pub struct Cli {
@@ -81,7 +81,7 @@ pub enum Command {
 
     /// Inspect a locally downloaded official DMG without executing it.
     InspectUpstream {
-        #[arg(default_value = "ChatGPT.dmg")]
+        #[arg(default_value = "ChatGPT-work.dmg")]
         dmg: PathBuf,
     },
 }

@@ -321,6 +321,22 @@ ONLINE_HEADERS="$ONLINE_DIR/online.headers"
 CURL_LOG="$TMP_DIR/curl.log"
 touch "$CURL_LOG"
 
+# The production default must reject the small legacy/classic wrapper class
+# before attempting a download. Fixtures opt into a one-byte floor below.
+if CHATGPT_WORK_CACHE_DIR="$TMP_DIR/undersized-cache" \
+    CHATGPT_WORK_CURL="$FAKE_CURL" \
+    CHATGPT_WORK_7Z="$FAKE_7Z" \
+    CURL_LOG="$CURL_LOG" \
+    FIXTURE_DMG="$DMG" \
+    FIXTURE_DIR="$FIXTURE_DIR" \
+    "$FETCHER" --output "$TMP_DIR/undersized.dmg" \
+        --metadata "$TMP_DIR/undersized.json" \
+        --headers "$TMP_DIR/undersized.headers" >/dev/null 2>&1; then
+    fail "fetcher accepted an undersized upstream artifact"
+fi
+[ "$(grep -c '^GET$' "$CURL_LOG" || true)" -eq 0 ] || \
+    fail "fetcher downloaded an undersized upstream artifact"
+
 # Seed a matching partial and state to exercise If-Range resume behavior.
 head -c 9 "$DMG" >"$CACHE_DIR/online.dmg.part"
 cat >"$CACHE_DIR/download.state" <<EOF
@@ -331,6 +347,7 @@ content_length=$DMG_SIZE
 EOF
 
 CHATGPT_WORK_CACHE_DIR="$CACHE_DIR" \
+CHATGPT_WORK_MIN_UPSTREAM_BYTES=1 \
 CHATGPT_WORK_CURL="$FAKE_CURL" \
 CHATGPT_WORK_7Z="$FAKE_7Z" \
 CURL_LOG="$CURL_LOG" \
@@ -351,6 +368,7 @@ grep -q -- 'If-Range: fixture-etag' "$CURL_LOG" || fail "fetcher omitted If-Rang
 
 # A second online run must validate the ETag/hash cache and perform HEAD only.
 CHATGPT_WORK_CACHE_DIR="$CACHE_DIR" \
+CHATGPT_WORK_MIN_UPSTREAM_BYTES=1 \
 CHATGPT_WORK_CURL="$FAKE_CURL" \
 CHATGPT_WORK_7Z="$FAKE_7Z" \
 CURL_LOG="$CURL_LOG" \
@@ -368,6 +386,7 @@ exit 99
 SH
 chmod +x "$FAIL_CURL"
 CHATGPT_WORK_CACHE_DIR="$TMP_DIR/offline-cache" \
+CHATGPT_WORK_MIN_UPSTREAM_BYTES=1 \
 CHATGPT_WORK_CURL="$FAIL_CURL" \
 CHATGPT_WORK_7Z="$FAKE_7Z" \
 FIXTURE_DIR="$FIXTURE_DIR" \
@@ -386,6 +405,6 @@ if CHATGPT_WORK_CACHE_DIR="$TMP_DIR/rejected-cache" \
     fail "fetcher accepted a non-allowlisted host"
 fi
 
-git -C "$REPO_DIR" check-ignore -q ChatGPT.dmg || fail "ChatGPT.dmg is not gitignored"
+git -C "$REPO_DIR" check-ignore -q ChatGPT-work.dmg || fail "ChatGPT-work.dmg is not gitignored"
 
 printf 'upstream_tooling: all tests passed\n'

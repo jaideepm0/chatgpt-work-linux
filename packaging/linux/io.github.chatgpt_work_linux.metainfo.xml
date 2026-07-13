@@ -2,22 +2,22 @@
 <component type="desktop-application">
   <id>io.github.chatgpt_work_linux</id>
   <name>ChatGPT Work Linux (Unofficial)</name>
-  <summary>Native community Linux client for the ChatGPT Work web experience</summary>
+  <summary>Community Linux compatibility build for the unified ChatGPT Work application</summary>
   <metadata_license>MIT</metadata_license>
   <project_license>MIT</project_license>
   <description>
     <p>
-      ChatGPT Work Linux provides an isolated GTK/WebKit desktop window for the
-      public ChatGPT service, plus native Linux shortcuts, portal screenshots,
-      downloads, permission controls, diagnostics, and browser compatibility
-      fallbacks.
+      ChatGPT Work Linux adapts the portable application plane from a locally
+      supplied official ChatGPT artifact with a Wayland-first Electron runtime,
+      Linux app-server integration, plugins, Sites, scheduled work, browser-use,
+      and standard compositor window decorations.
     </p>
     <p>
       This is an independent community project. It is not produced, supported,
       or endorsed by OpenAI. Builds are produced locally from a user-supplied
-      It does not include or execute OpenAI application binaries. The desktop
-      icon is the unmodified official ChatGPT application icon;
-      OpenAI owns the icon and all ChatGPT marks.
+      artifact and are not redistributed by this project. The desktop icon is
+      the unmodified official ChatGPT application icon; OpenAI owns the icon
+      and all ChatGPT marks.
     </p>
   </description>
   <launchable type="desktop-id">io.github.chatgpt_work_linux.desktop</launchable>
@@ -30,9 +30,9 @@
   <url type="homepage">https://chatgpt.com/work/</url>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="0.1.0" date="2026-07-13">
+    <release version="26.707.62119" date="2026-07-13">
       <description>
-        <p>Native Rust/GTK Linux architecture and bounded upstream provenance tooling.</p>
+        <p>Unified ChatGPT Work compatibility release for native Wayland Linux desktops.</p>
       </description>
     </release>
   </releases>

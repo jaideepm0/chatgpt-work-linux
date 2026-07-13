@@ -1,25 +1,26 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := build
 
-.PHONY: build check clean doctor install-user package-flatpak package-pacman refresh-upstream run sbom smoke-wayland test uninstall-user
+.PHONY: build check clean doctor install-user refresh-upstream run sbom smoke-wayland test uninstall-user
 
 build:
-	env PATH=/usr/bin:/bin \
-		RUSTFLAGS='--remap-path-prefix=$(CURDIR)=/usr/src/chatgpt-work-linux --remap-path-prefix=$(HOME)/.cargo=/usr/src/cargo --remap-path-prefix=$(HOME)/.rustup=/usr/src/rustup' \
-		cargo build --release --locked
+	bash scripts/fetch-upstream.sh
+	bash scripts/build-work-app.sh ./ChatGPT-work.dmg
 
-run:
-	env PATH=/usr/bin:/bin cargo run --locked --
+run: build
+	./.work/chatgpt-work-app/start.sh
 
-doctor:
-	env PATH=/usr/bin:/bin cargo run --locked -- doctor
+doctor: build
+	./.work/chatgpt-work-app/start.sh doctor
 
 smoke-wayland: build
-	bash scripts/smoke-wayland.sh ./target/release/chatgpt-work-linux
+	bash scripts/smoke-wayland.sh ./.work/chatgpt-work-app/start.sh
 
 test:
 	env PATH=/usr/bin:/bin cargo test --locked
 	bash tests/upstream_tooling.sh
+	bash tests/runtime_hardening.sh
+	python3 -m py_compile scripts/configure-work-runtime.py scripts/patch-work-asar.py scripts/inspect-upstream.py
 
 check:
 	env PATH=/usr/bin:/bin cargo fmt --all -- --check
@@ -27,15 +28,9 @@ check:
 	$(MAKE) test
 	bash -n scripts/*.sh
 	desktop-file-validate packaging/linux/io.github.chatgpt_work_linux.desktop
+	desktop-file-validate packaging/linux/chatgpt-work-linux.desktop
 	desktop-file-validate packaging/flatpak/io.github.chatgpt_work_linux.desktop
 	appstreamcli validate --pedantic --no-net packaging/linux/io.github.chatgpt_work_linux.metainfo.xml
-	flatpak-builder --show-manifest packaging/flatpak/io.github.chatgpt_work_linux.yml >/dev/null
-
-package-pacman:
-	bash scripts/build-pacman.sh
-
-package-flatpak:
-	bash scripts/build-flatpak.sh
 
 sbom:
 	mkdir -p dist
@@ -46,7 +41,7 @@ sbom:
 refresh-upstream:
 	bash scripts/refresh-upstream-snapshot.sh
 
-install-user:
+install-user: build
 	bash scripts/install-user.sh
 
 uninstall-user:

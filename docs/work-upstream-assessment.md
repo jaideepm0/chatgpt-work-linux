@@ -2,70 +2,63 @@
 
 ## Verified product and artifact
 
-The current ChatGPT download page describes one desktop application containing
-Chat, ChatGPT Work, and Codex. Its macOS link resolves to:
+OpenAI now distributes a unified desktop application containing Chat, Work,
+and Codex. The macOS download link resolves to:
 
 `https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg`
 
-The observation made on 2026-07-13 is:
+Observation on 2026-07-13:
 
-- compressed DMG: 615,738,501 bytes;
-- SHA-256: `c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca`;
-- ETag: `0x8DEE0AB667193CC`;
-- version: `26.707.62119`, bundle `5211`;
-- product bundle: `com.openai.codex` with ChatGPT display identity;
-- runtime: ARM64 macOS Electron application with `app.asar`;
-- 10,777 bounded archive entries and 24 selected Mach-O headers;
-- the artifact was never executed.
+| Field | Value |
+|---|---|
+| Size | 615,738,501 bytes |
+| SHA-256 | `c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca` |
+| Last-Modified | `Mon, 13 Jul 2026 06:53:09 GMT` |
+| ETag | `0x8DEE0AB667193CC` |
+| Display/version | ChatGPT `26.707.62119` (bundle `5211`) |
+| Bundle identifier | `com.openai.codex` |
+| Runtime | Electron `42.1.0`, ARM64 macOS host |
+| ASAR entries | 10,777 |
 
-The older
-`https://persistent.oaistatic.com/sidekick/public/ChatGPT.dmg` endpoint still
-serves the 78.6 MB native ChatGPT Classic application. It is not the current
-unified Work/Codex desktop download.
+The 78 MiB legacy/classic download and the Codex-named DMG are not accepted as
+inputs. The downloader allowlists the URL above and rejects artifacts at or
+below 500 MiB before publication.
 
-## Structural Work markers
+## Product evidence from the bundle
 
-The bounded inspector records exact archive structure without extracting the
-proprietary renderer. The unified artifact includes bundled plugin directories
-for:
+The artifact contains the portable unified application plane, local app-server
+and CLI resources, browser/chrome/computer-use/deep-research/latex/
+record-and-replay/sites/visualize plugins, document and presentation runtimes,
+scheduled-work UI, Sites, pull-request and repository surfaces, Quick Chat,
+and remote-control resources. Availability is still gated by account,
+server-side flags, and platform capability checks.
 
-- browser and Chrome integration;
-- Computer Use;
-- Deep Research;
-- record and replay;
-- Sites and visualization;
-- LaTeX support.
+The public `chatgpt.com/work/` route is a marketing page. Loading it in GTK,
+WebKit, Chromium app mode, or a generic Electron shell does not reproduce the
+desktop Work product. The packaged application plane and local app-server are
+therefore required.
 
-Nested components include the Computer Use service, installer, client, and
-lock-screen guardian, four Electron helper applications, and Sparkle updater
-components. The plist declares Apple Events, audio capture, camera, desktop
-folder, location, and microphone usage categories.
+## Linux strategy
 
-These observations establish that Computer Use and browser integration are
-part of the unified desktop distribution. They do not authorize execution of
-the Apple helpers, reveal a supported native protocol, or make privileged IPC
-safe to expose to remote web content.
+The macOS executable and Apple-only helpers are never executed. A clean,
+commit-pinned external adapter extracts the artifact, applies deterministic
+Linux patches, supplies Electron 42 for Linux, and rebuilds native modules.
+This repository then applies stricter runtime invariants:
 
-## Architecture decision
+- packaged executable identity and `app.isPackaged=true`;
+- `app://` renderer with no localhost/Python asset server;
+- Chromium renderer sandbox retained;
+- Wayland Ozone and compositor-native decorations;
+- no unconditional startup Quick Chat window;
+- isolated XDG profile, bounded diagnostics, immutable atomic installation.
 
-Although the current artifact contains a portable Electron application plane,
-this repository keeps Rust/GTK/WebKitGTK as its primary runtime. The macOS DMG
-remains ignored reference input: no Mach-O executable is run, no proprietary
-renderer is patched or bundled, and no Apple privileged helper is translated.
+The generated application and proprietary resources remain ignored local
+outputs and must not be redistributed.
 
-Linux parity is implemented as independently testable capability slices:
+## Feature boundary
 
-1. server-delivered Chat/Work UI through the signed-in public service;
-2. explicit file selection/upload and safe native download handling;
-3. user-initiated portal screenshot, screen sharing, voice, and shortcut;
-4. future observation-only local context with preview and per-transfer consent;
-5. a separately threat-modeled input-automation phase, never a remote-page
-   shell or unrestricted input bridge;
-6. package-manager updates, isolated profiles, and bounded diagnostics.
-
-## Branding boundary
-
-The unmodified public ChatGPT icon is the sole permitted upstream asset used
-for desktop identification. Application name, About dialog, desktop entry, and
-package metadata remain visibly “Unofficial.” No other proprietary application
-resource is shipped.
+The unified local renderer may use the packaged app-server protocol and the
+adapter's validated Linux integrations. Arbitrary remote HTTPS pages must not
+receive a shell or privileged native bridge. User-initiated portal actions and
+computer-use controls must stay visible, cancellable, and scoped to the active
+session.

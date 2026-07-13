@@ -3,7 +3,7 @@ set -Eeuo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repo_dir="$(cd -- "$script_dir/.." && pwd -P)"
-artifact="$repo_dir/ChatGPT.dmg"
+artifact="$repo_dir/ChatGPT-work.dmg"
 snapshot="$repo_dir/docs/upstream-snapshot.json"
 cache_dir="${CHATGPT_WORK_CACHE_DIR:-$repo_dir/.cache/upstream}"
 candidate="$cache_dir/upstream-snapshot.candidate.json"
@@ -15,11 +15,11 @@ usage() {
     cat <<'EOF'
 Usage: scripts/refresh-upstream-snapshot.sh [OPTIONS]
 
-Refresh the checked-in, metadata-only snapshot of the official ChatGPT DMG.
+Refresh the checked-in, metadata-only snapshot of the official unified ChatGPT DMG.
 The DMG stays gitignored and is never executed, patched, or packaged.
 
 Options:
-  --artifact PATH  ignored local DMG path (default: ./ChatGPT.dmg)
+  --artifact PATH  ignored local DMG path (default: ./ChatGPT-work.dmg)
   --snapshot PATH  metadata JSON to check/update
   --offline        inspect the existing artifact without network access
   --check          fail when the checked-in snapshot differs; do not update it

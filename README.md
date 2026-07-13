@@ -1,156 +1,122 @@
 # chatgpt-work-linux
 
-`chatgpt-work-linux` is an unofficial community Linux desktop client for the
-public ChatGPT service, including server-delivered Work features available to
-the signed-in account. The default runtime is a native Rust/GTK/WebKitGTK
-application; installed Chromium and the system browser are compatibility
-fallbacks.
+`chatgpt-work-linux` is an unofficial, local Linux compatibility build of the
+unified ChatGPT desktop application, including Chat, Work, Codex, plugins,
+Sites, scheduled work, and the account-gated features present in OpenAI's
+current desktop release.
 
-This is not an OpenAI product and is not endorsed or supported by OpenAI. It
-does not redistribute, patch, translate, or execute the official macOS
-application and does not use a private ChatGPT API. OpenAI owns the ChatGPT
-name, marks, and unmodified public application icon used for desktop
-identification. Application and package metadata visibly say “Unofficial.”
+It is not produced, supported, or endorsed by OpenAI. The official artifact,
+application resources, ChatGPT name, and public icon remain OpenAI property.
+This repository does not contain or redistribute the DMG, extracted app, or
+the external compatibility adapter; users build locally from the official
+download.
 
-## Implemented
+## What this build fixes
 
-- Wayland-first Rust/GTK shell with one shared WebKit context and no Electron,
-  Node, Python, bundled browser, or local HTTP server in the default runtime.
-- Persistent isolated XDG profiles and an ephemeral `--private` profile.
-- Strict navigation policy: trusted ChatGPT/authentication pages stay inside,
-  unrelated HTTPS links open externally, and unsafe schemes are blocked.
-- Native settings for engine, performance, privacy, global shortcut, and
-  background behavior, saved atomically with mode 0600.
-- Per-request microphone, camera, screen, location, notification, and
-  cross-site sign-in-storage decisions with trusted-sender checks.
-- Portal global shortcut and user-initiated Screenshot flow; screenshots are
-  copied to the clipboard for an explicit paste into the composer.
-- Native upload chooser, sanitized collision-safe downloads, bounded recovery,
-  safe mode, Chromium/browser fallbacks, and structured diagnostics.
-- Atomic user-local install with one rollback version, Arch packaging, Flatpak,
-  SBOM output, and profile-preserving uninstall.
+- Runs the actual packaged desktop renderer from `app://`; it is not a
+  `chatgpt.com` web wrapper and has no localhost asset server.
+- Uses Electron's native Wayland/Ozone path and standard compositor window
+  decorations.
+- Retains Chromium's renderer sandbox and rejects generated launchers that add
+  `--no-sandbox` or `--disable-gpu-sandbox`.
+- Gives Electron a packaged executable identity, so `app.isPackaged` is true
+  and the application cannot regress to the development URL.
+- Removes the unconditional startup Quick Chat prewarm that created a second
+  blank window on Linux; Quick Chat remains available when requested.
+- Keeps ChatGPT Work state in an isolated XDG profile, bounds launcher logs,
+  validates native dependencies, and installs immutable releases atomically.
 
-General control of other desktop applications is intentionally not exposed to
-remote web content. The current unified upstream artifact does contain a
-bundled Computer Use service, but importing its privileged bridge would violate
-this client's trust boundary. The evidence and a safe staged strategy are in
-[the upstream feature audit](docs/upstream-feature-audit.md).
+Remote HTTPS content does not receive a shell bridge. The privileged desktop
+and computer-use paths remain the packaged application's validated local
+surfaces, with the adapter's portal and Linux policy patches applied at build
+time.
 
-## Why the macOS binary is reference-only
+## Current verified upstream
 
-The current official ChatGPT `26.707.62119` artifact is a 615 MB unified
-Chat/Work/Codex Electron application for ARM64 macOS. It contains `app.asar`,
-bundled plugins, and Apple-only helpers. Repository policy treats that artifact
-as reference input: its proprietary application plane is not executed,
-translated, patched, or included in Linux packages.
+| Field | Value |
+|---|---|
+| Official URL | `https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg` |
+| ChatGPT version | `26.707.62119` (bundle `5211`) |
+| Size | `615,738,501` bytes |
+| SHA-256 | `c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca` |
+| Electron | `42.1.0` |
+| Adapter commit | `bce8d36f72eda4cabfbf32a95054e6fc79737722` |
 
-The bounded inspector records archive integrity, public bundle metadata,
-Mach-O headers, exact resource-bundle names, privacy-category keys, and hashes.
-It never executes the app or extracts proprietary UI. The observed artifact is
-615,738,501 bytes with SHA-256
-`c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca`.
+The downloader rejects non-HTTPS redirects, unexpected hosts, artifacts at or
+below 500 MiB, size drift, hash drift, and invalid DMGs. The complete observed
+metadata is in [docs/upstream-snapshot.json](docs/upstream-snapshot.json).
 
 ## Requirements
 
-Runtime:
+- x86_64 Linux with a Wayland session and working user namespaces
+- systemd user session, XDG Desktop Portal, PipeWire, and a desktop portal
+  backend
+- build tools required by the external `codex-desktop-linux` adapter
+- `curl`, Python 3, Node.js, Rust/Cargo, 7-Zip, `desktop-file-utils`, and
+  `appstreamcli`
+- the reference checkout at `~/programs/codex-desktop-linux`, or set
+  `CODEX_DESKTOP_LINUX_REPO`
 
-- Linux x86_64 (the Rust source is portable to aarch64)
-- GTK 3.24 and WebKitGTK 4.1 / WebKitGTK 2.40+
-- XDG Desktop Portal and the desktop-specific backend
-- PipeWire/GStreamer media plugins for screen sharing and voice
+The adapter checkout is fetched and archived into the XDG cache by exact Git
+commit. It is never copied into this repository.
 
-Build requirements are Rust/Cargo and `pkg-config`. Python 3, 7-Zip, and curl
-are used only by the optional upstream reference inspector.
-
-On Arch Linux:
-
-```bash
-sudo pacman -S --needed gtk3 webkit2gtk-4.1 xdg-desktop-portal cargo-cyclonedx jq
-```
-
-## Build, validate, and run
+## Build, verify, and install
 
 ```bash
 make check
 make build
-./target/release/chatgpt-work-linux doctor --json
-make run
-```
-
-Install or package:
-
-```bash
+make doctor
+make smoke-wayland
 make install-user
-make package-pacman
-make package-flatpak
-make sbom
 ```
 
-The user install lives under `~/.local/opt/chatgpt-work-linux`, exposes
-`~/.local/bin/chatgpt-work-linux`, switches releases atomically, and retains
-the previous release for rollback.
+`make build` downloads the allowlisted official artifact when necessary,
+verifies it against the checked-in snapshot, and publishes a completed build
+atomically at `.work/chatgpt-work-app`. `make install-user` publishes an
+immutable release under `~/.local/opt/chatgpt-work-linux`, switches `current`
+only after verification, and retains one previous release for rollback.
 
-## Usage
+Launch or inspect it with:
 
 ```bash
 chatgpt-work-linux
-chatgpt-work-linux --companion
-chatgpt-work-linux --toggle
-chatgpt-work-linux --safe-mode
-chatgpt-work-linux --engine chromium
-chatgpt-work-linux --engine browser
-chatgpt-work-linux --profile team
-chatgpt-work-linux --private
 chatgpt-work-linux doctor --json
-chatgpt-work-linux paths
-chatgpt-work-linux print-config
-chatgpt-work-linux clear-cache --yes
 ```
 
-Copy [config.example.toml](config.example.toml) to the path printed by
-`chatgpt-work-linux paths`. Profiles do not share cookies, storage, cache, or
-single-instance ownership.
+The desktop entry is `ChatGPT Work Linux (Unofficial)`. Uninstalling preserves
+the profile unless purge is explicitly requested:
 
-Auto mode begins with WebKitGTK. Google blocks OAuth in embedded user agents,
-so the app can hand the whole isolated profile to an installed Chromium app
-window. It does not copy or decrypt cookies and never disables browser
-security.
+```bash
+make uninstall-user
+./scripts/uninstall-user.sh --purge
+```
 
-## Refresh the official reference snapshot
-
-This is a developer provenance operation, not part of normal build or launch:
+## Updating upstream
 
 ```bash
 make refresh-upstream
 ./scripts/refresh-upstream-snapshot.sh --check
-./scripts/refresh-upstream-snapshot.sh --offline
-chatgpt-work-linux inspect-upstream ./ChatGPT.dmg
 ```
 
-The downloader is restricted to the compiled official HTTPS URL, bounds size
-and time, safely resumes matching partials, validates the DMG, writes the
-proprietary artifact only to ignored paths, and atomically publishes metadata.
+Review snapshot and adapter drift before committing a new version. Required
+patch misses are fatal; optional misses remain visible in the patch report.
+Build reports are stored under `.work/reports/<version>/` and are ignored by
+Git.
 
 ## Documentation
 
-- [Upstream feature and Linux parity audit](docs/upstream-feature-audit.md)
-- [ChatGPT Work artifact assessment](docs/work-upstream-assessment.md)
-- [Architecture and security design](docs/architecture.md)
-- [Current upstream snapshot](docs/upstream-snapshot.json)
-- [Reference codebase review](docs/codex-desktop-linux-review.md)
-- [Improvement roadmap](docs/audit-and-improvement-plan.md)
+- [Architecture and trust boundaries](docs/architecture.md)
+- [Upstream feature audit](docs/upstream-feature-audit.md)
+- [Artifact assessment](docs/work-upstream-assessment.md)
+- [Adapter review](docs/codex-desktop-linux-review.md)
 - [Validation evidence](docs/validation-report.md)
-- [Flatpak sandbox audit](docs/flatpak-sandbox.md)
-- [Security policy](SECURITY.md)
+- [Current snapshot](docs/upstream-snapshot.json)
 
 ## Known limits
 
-- The service can change independently of this community shell, and account
-  flags still control product availability.
-- Google OAuth requires the Chromium/browser handoff; email sign-in can remain
-  in WebKitGTK.
-- Apple Events, Handoff, macOS Accessibility, and native Apple app integrations
-  are not imitated.
-- Local app context and input automation require a separate threat model,
-  visible preview, per-action approval, and portal-scoped implementation. They
-  are not implemented by scraping or injecting input into the desktop.
+- Feature availability depends on account entitlements and server flags.
+- The official macOS executable and Apple-only helpers are not run on Linux;
+  the portable application plane is hosted by a verified Linux Electron and
+  rebuilt Linux native modules.
+- This is a local compatibility build. Do not redistribute the generated app
+  or the proprietary upstream artifact.

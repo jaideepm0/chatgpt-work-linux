@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Inspect the official ChatGPT macOS artifact without executing its contents.
+"""Inspect the official unified ChatGPT artifact without executing it.
 
 The inspector intentionally uses only Python's standard library plus a recent
 7-Zip executable. 7-Zip handles the DMG/HFS container; plist and Mach-O parsing
@@ -63,7 +63,7 @@ class InspectionError(RuntimeError):
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Safely inspect an official ChatGPT DMG and emit deterministic JSON."
+        description="Safely inspect the official unified ChatGPT DMG and emit deterministic JSON."
     )
     parser.add_argument(
         "--dmg", required=True, type=Path, help="existing DMG to inspect"

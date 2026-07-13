@@ -47,7 +47,7 @@ modules:
           - .work
           - dist
           - target
-          - ChatGPT.dmg
+          - ChatGPT-work.dmg
           - chatgpt-app
           - chatgpt-app-next
       - cargo-sources.json

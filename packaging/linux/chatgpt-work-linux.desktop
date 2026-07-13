@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=ChatGPT Work Linux (Unofficial)
+Comment=Wayland identity alias for ChatGPT Work Linux
+Exec=chatgpt-work-linux %u
+TryExec=chatgpt-work-linux
+Icon=io.github.chatgpt_work_linux
+Terminal=false
+NoDisplay=true
+StartupNotify=true
+StartupWMClass=chatgpt-work-linux
+MimeType=x-scheme-handler/codex;
