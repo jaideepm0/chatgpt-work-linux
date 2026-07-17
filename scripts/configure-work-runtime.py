@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Turn the generated compatibility launcher into the isolated Work runtime."""
+"""Turn the generated compatibility launcher into the hardened Work runtime."""
 
 from __future__ import annotations
 
@@ -29,6 +29,19 @@ CODEX_LINUX_EXECUTABLE_NAME=chatgpt-work-linux-bin
 CODEX_OZONE_PLATFORM=wayland
 CHATGPT_WORK_UPSTREAM_VERSION={args.upstream_version}
 
+# Native Wayland GPU compositing measured dramatically lower settled CPU and
+# memory on the target system. Keep the adapter workaround as an explicit
+# fallback for compositors that exhibit transparent or flickering side panels.
+if [[ -z ${{CODEX_ELECTRON_DISABLE_GPU_COMPOSITING+x}} ]]; then
+  CODEX_ELECTRON_DISABLE_GPU_COMPOSITING=0
+fi
+# KDE exposes an AT-SPI bus even when no assistive Chromium client is active.
+# Do not force every renderer accessibility tree for that ambient bus alone;
+# screen-reader users can explicitly set this back to 1.
+if [[ -z ${{CODEX_FORCE_RENDERER_ACCESSIBILITY+x}} ]]; then
+  CODEX_FORCE_RENDERER_ACCESSIBILITY=0
+fi
+
 case ${{1:-}} in
   doctor)
     wayland_session=false
@@ -36,10 +49,10 @@ case ${{1:-}} in
       wayland_session=true
     fi
     if [[ ${{2:-}} == --json ]]; then
-      printf '{{\"application\":\"chatgpt-work-linux\",\"unofficial\":true,\"runtime\":\"electron\",\"upstreamVersion\":\"%s\",\"electronVersion\":\"%s\",\"waylandSession\":%s,\"sandboxDisabled\":false,\"rendererOrigin\":\"app://\",\"profile\":\"isolated-xdg\"}}\\n' \\
+      printf '{{\"application\":\"chatgpt-work-linux\",\"unofficial\":true,\"runtime\":\"electron\",\"upstreamVersion\":\"%s\",\"electronVersion\":\"%s\",\"waylandSession\":%s,\"sandboxDisabled\":false,\"rendererOrigin\":\"app://\",\"profile\":\"xdg-electron+canonical-codex\"}}\\n' \\
         "$CHATGPT_WORK_UPSTREAM_VERSION" "$(cat \"$(dirname -- \"$(readlink -f -- \"${{BASH_SOURCE[0]}}\")\")/version\" 2>/dev/null || printf unknown)" "$wayland_session"
     else
-      printf 'ChatGPT Work Linux (Unofficial)\\n  Runtime: Electron, packaged app:// renderer\\n  Upstream: %s\\n  Wayland: required\\n  Chromium sandbox disabled: false\\n  Profile: isolated XDG state\\n' "$CHATGPT_WORK_UPSTREAM_VERSION"
+      printf 'ChatGPT Work Linux (Unofficial)\\n  Runtime: Electron, packaged app:// renderer\\n  Upstream: %s\\n  Wayland: required\\n  Chromium sandbox disabled: false\\n  Profile: isolated XDG Electron state + canonical Codex home\\n' "$CHATGPT_WORK_UPSTREAM_VERSION"
     fi
     exit 0
     ;;
@@ -76,13 +89,15 @@ fi
 """
     new_home = """if [ -n "${CHATGPT_WORK_CODEX_HOME:-}" ]; then
     CODEX_HOME="$CHATGPT_WORK_CODEX_HOME"
-elif [ -n "${HOME:-}" ]; then
-    CODEX_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/$CODEX_LINUX_APP_ID/codex-home"
-else
-    CODEX_HOME=""
+elif [ -z "${CODEX_HOME:-}" ]; then
+    if [ -n "${HOME:-}" ]; then
+        CODEX_HOME="$HOME/.codex"
+    else
+        CODEX_HOME=""
+    fi
 fi
 """
-    source = replace_once(source, old_home, new_home, "isolated CODEX_HOME block")
+    source = replace_once(source, old_home, new_home, "canonical CODEX_HOME block")
     source = replace_once(
         source,
         "export CODEX_HOME CODEX_LINUX_APP_ID CODEX_LINUX_APP_DISPLAY_NAME",
@@ -108,6 +123,7 @@ fi
     safe_args = """    ELECTRON_LAUNCH_ARGS=(
         --class="$CODEX_LINUX_DESKTOP_ID"
         --app-id="$CODEX_LINUX_DESKTOP_ID"
+        --force-prefers-reduced-motion
     )
 """
     source = replace_once(source, sandbox_args, safe_args, "sandbox launch arguments")

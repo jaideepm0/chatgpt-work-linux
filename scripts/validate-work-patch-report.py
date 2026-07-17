@@ -32,6 +32,12 @@ def main() -> None:
     if not isinstance(patches, list):
         raise SystemExit("validate-work-patch-report: report has no patches array")
 
+    enabled_features = report.get("enabledFeatures")
+    if enabled_features != []:
+        raise SystemExit(
+            "validate-work-patch-report: optional Linux features must remain disabled"
+        )
+
     selected: dict[str, list[str]] = {name: [] for name in REQUIRED_PATCHES}
     for patch in patches:
         if not isinstance(patch, dict):
@@ -53,7 +59,7 @@ def main() -> None:
             + "\n  - ".join(failures)
         )
 
-    print("Required Linux Computer Use UI and backend patches passed.")
+    print("Required Linux Computer Use patches passed; optional features are disabled.")
 
 
 if __name__ == "__main__":

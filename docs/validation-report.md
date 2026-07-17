@@ -1,28 +1,31 @@
 # Validation report
 
-Date: 2026-07-13
+Date: 2026-07-17
 
 Host: Arch Linux x86_64, KDE Plasma/KWin, Wayland
 
 ## Verified input and adapter
 
 - Official URL: `https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg`
-- HTTP size: 615,738,501 bytes (greater than 500 MiB)
-- SHA-256: `c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca`
-- ChatGPT: `26.707.62119`, bundle `5211`, Electron `42.1.0`
-- External adapter: `a8dbcb954f6108070b5633afef69792bf12f5507`
-- Upstream inventory: 10,777 entries and the browser, chrome,
+- HTTP size: 618,657,103 bytes (590 MiB; greater than 500 MiB)
+- SHA-256: `ff459150991612007549270d2d28c5e78cec6bd6ac200a7ada5ed6c031369b87`
+- ChatGPT: `26.715.21425`, bundle `5488`, Electron `42.3.0`
+- External adapter: `b24e5ff2cfabbd1a366f711229b3b115aa4397fe`
+- Upstream inventory: 10,778 entries and the browser, chrome,
   computer-use, deep-research, latex, record-and-replay, sites, and visualize
   plugin families.
 
-The adapter's upstream acceptance profile passed all required patches. The
-only remaining adapter warning is an optional tooltip collision; it is not a
-required runtime capability.
+The adapter's upstream acceptance profile passed all required patches. Eight
+upstream-drift warnings remain optional: About icon fallback, avatar-settings
+sync, Chrome-extension status, eager automation tool loading, monospace font
+fallback, tooltip collision, Browser sidebar attachment recovery, and the
+Sparkle updater bridge. None changes the renderer origin, Codex task database,
+sandbox, or required Computer Use capability.
 
 ## Build and hardening validation
 
 - A clean `make build` completed from the exact official artifact and current
-  cached adapter archive, producing a roughly 949 MiB staged application.
+  cached adapter archive, producing a 763 MiB staged application.
 - The generated build contains `chatgpt-work-linux-bin`, the packaged renderer,
   app-server, plugins, rebuilt Linux native modules, provenance reports, and a
   complete SHA-256 manifest.
@@ -42,6 +45,17 @@ required runtime capability.
   renderer drift.
 - Native shared libraries resolved, the managed Node runtime reported v22, and
   required shell/desktop/AppStream validations passed.
+- Chromium's documented reduced-motion preference is requested by default.
+  In the same virtual-Wayland/two-core 30-second A/B profile, settled CPU fell
+  from 88.44% to 5.05%; renderer CPU fell from 58.05% to 0.96%. This is a
+  command-line preference rather than a renderer or style patch, and users can
+  explicitly request full motion in `electron-flags.conf`.
+
+The strict 768 MiB cgroup lane does not pass: the kernel OOM-killed the final
+profile at the configured 768 MiB peak while loading the unified renderer,
+app-server, plugins, and 888-thread sidebar. This is recorded as an unresolved
+upstream memory limit, not hidden as a successful gate. No unsafe V8 heap cap,
+sandbox reduction, or feature removal was applied to manufacture a pass.
 
 Computer Use release validation additionally requires the Linux UI feature,
 plugin gate, native desktop-app discovery, renderer availability, and install
@@ -85,16 +99,28 @@ text-input probe and a portal key chord both completed successfully. The final
 backend adds last-moment target-focus revalidation after a focus-race was
 observed during testing. The blank overlay did not reappear.
 
+Local Codex history validation used a consistent database and Electron-profile
+clone. The former launcher had split history into 884 canonical threads and 4
+isolated threads with no overlapping IDs. The migration tool backed up the
+canonical database, copied 6 required rollout/shell-snapshot files, merged the
+4 thread and index records transactionally, rewrote rollout paths, and passed
+SQLite `quick_check`. The unified sidebar then rendered Chat/Work projects and
+888 local Codex threads together. One recovered 4-turn thread and one prior
+2-turn thread both completed `thread/read` and resume successfully. Eight
+headerless, one-message rollout stubs from 2025 and one empty rollout from May
+2026 remain preserved on disk but are intentionally not forced into the
+official index.
+
 Installed doctor output:
 
 ```json
-{"application":"chatgpt-work-linux","unofficial":true,"runtime":"electron","upstreamVersion":"26.707.62119","electronVersion":"42.1.0","waylandSession":true,"sandboxDisabled":false,"rendererOrigin":"app://","profile":"isolated-xdg"}
+{"application":"chatgpt-work-linux","unofficial":true,"runtime":"electron","upstreamVersion":"26.715.21425","electronVersion":"42.3.0","waylandSession":true,"sandboxDisabled":false,"rendererOrigin":"app://","profile":"xdg-electron+canonical-codex"}
 ```
 
 The verified user release is
-`~/.local/opt/chatgpt-work-linux/versions/26.707.62119-9910d47699cdf22f`;
+`~/.local/opt/chatgpt-work-linux/versions/26.715.21425-aab24be426347a9c`;
 `current` and `previous` are immutable releases. Its Computer Use backend
-SHA-256 is `7dabf671ba4599a29c3153f8cfc4b08b1a0c47aded9397c4c989e5cd57dfe863`.
+SHA-256 is `f06f368779f907e1ada57231b8b222cd21668935adbc83a9faac5fd8ef6306e0`.
 The unrelated
 `chatgpt-desktop-linux` wrapper and its dedicated profile/desktop residue were
 removed. The separate Codex desktop installation was not changed.

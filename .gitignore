@@ -10,6 +10,8 @@ chatgpt-app-next/
 dist/
 target/
 node_modules/
+__pycache__/
+*.py[cod]
 
 # Local build configuration and reports
 config.local.toml

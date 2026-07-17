@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+umask 077
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 REPO_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
 
 OFFICIAL_URL="https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
 URL="$OFFICIAL_URL"
-OUTPUT="$REPO_DIR/ChatGPT-work.dmg"
-CACHE_DIR="${CHATGPT_WORK_CACHE_DIR:-$REPO_DIR/.cache/upstream}"
+CACHE_DIR="${CHATGPT_WORK_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/upstream}"
+OUTPUT="${CHATGPT_WORK_DMG_PATH:-$CACHE_DIR/ChatGPT-work.dmg}"
 METADATA="$CACHE_DIR/upstream-snapshot.json"
 HEADERS_FILE="$CACHE_DIR/response.headers"
 OFFLINE=0
@@ -26,7 +27,7 @@ Usage: scripts/fetch-upstream.sh [OPTIONS]
 Fetch and inspect the allowlisted official unified ChatGPT macOS artifact.
 
 Options:
-  --output PATH       DMG destination (default: ./ChatGPT-work.dmg)
+  --output PATH       DMG destination (default: XDG cache ChatGPT-work.dmg)
   --metadata PATH     deterministic inspection JSON destination
   --headers PATH      raw HEAD response headers destination/input
   --url URL           upstream URL; currently only the official URL is allowed
@@ -34,8 +35,9 @@ Options:
   --force             bypass a matching local ETag/hash cache
   -h, --help          show this help
 
-The proprietary DMG is never executed or added to a package. Downloads are
-resumed in an ignored .part file, validated, then atomically renamed.
+The proprietary DMG is never executed or added to a package. Complete and
+partial downloads stay in the private XDG cache, are resumed, validated, then
+atomically renamed.
 EOF
 }
 
@@ -108,6 +110,7 @@ command -v "$PYTHON_BIN" >/dev/null 2>&1 || die "Python 3 not found: $PYTHON_BIN
 
 mkdir -p -- "$(dirname -- "$OUTPUT")" "$(dirname -- "$METADATA")" \
     "$(dirname -- "$HEADERS_FILE")" "$CACHE_DIR"
+chmod 0700 "$CACHE_DIR"
 
 if [ "$OUTPUT" = "$METADATA" ] || [ "$OUTPUT" = "$HEADERS_FILE" ] || \
    [ "$METADATA" = "$HEADERS_FILE" ]; then

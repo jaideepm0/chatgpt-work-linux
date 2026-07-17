@@ -30,7 +30,7 @@
   <url type="homepage">https://chatgpt.com/work/</url>
   <content_rating type="oars-1.1"/>
   <releases>
-    <release version="26.707.62119" date="2026-07-13">
+    <release version="26.715.21425" date="2026-07-17">
       <description>
         <p>Unified ChatGPT Work compatibility release for native Wayland Linux desktops.</p>
       </description>

@@ -182,7 +182,10 @@ ORIGINAL_POINTER_PREFERENCE = """    fn should_prefer_portal_pointer_backend(&se
         ]) {
             return self.is_wayland_session();
         }
-        self.is_wayland_session() && ydotool_socket().is_none()
+        should_prefer_portal_backend_by_default(
+            self.is_wayland_session(),
+            ydotool_backend_available(),
+        )
     }
 """
 PATCHED_POINTER_PREFERENCE = """    fn should_prefer_portal_pointer_backend(&self) -> bool {
@@ -203,7 +206,11 @@ ORIGINAL_KEYBOARD_PREFERENCE = """    fn should_prefer_portal_keyboard_backend(&
         ]) {
             return self.is_wayland_session() && !self.is_kde_wayland_session();
         }
-        self.is_wayland_session() && !self.is_kde_wayland_session() && ydotool_socket().is_none()
+        !self.is_kde_wayland_session()
+            && should_prefer_portal_backend_by_default(
+                self.is_wayland_session(),
+                ydotool_backend_available(),
+            )
     }
 """
 PATCHED_KEYBOARD_PREFERENCE = """    fn should_prefer_portal_keyboard_backend(&self) -> bool {
@@ -294,6 +301,7 @@ PATCHED_PORTAL_TYPE_TEXT = """                    Ok(Some(session)) => {
 """
 
 ORIGINAL_YDOTOOL_COMMAND = """async fn run_ydotool(args: &[String]) -> std::result::Result<Output, String> {
+    ydotool::ensure_supported()?;
     let mut command = TokioCommand::new(\"ydotool\");
 """
 PATCHED_YDOTOOL_COMMAND = """async fn run_ydotool(args: &[String]) -> std::result::Result<Output, String> {
@@ -304,10 +312,12 @@ PATCHED_YDOTOOL_COMMAND = """async fn run_ydotool(args: &[String]) -> std::resul
     {
         return Err(\"ydotool is disabled on Wayland; a consented XDG Remote Desktop portal session is required\".to_string());
     }
+    ydotool::ensure_supported()?;
     let mut command = TokioCommand::new(\"ydotool\");
 """
 
 ORIGINAL_YDOTOOL_TYPE = """async fn run_ydotool_type_text(text: &str) -> std::result::Result<Output, String> {
+    ydotool::ensure_supported()?;
     let mut command = TokioCommand::new(\"ydotool\");
 """
 PATCHED_YDOTOOL_TYPE = """async fn run_ydotool_type_text(text: &str) -> std::result::Result<Output, String> {
@@ -318,7 +328,55 @@ PATCHED_YDOTOOL_TYPE = """async fn run_ydotool_type_text(text: &str) -> std::res
     {
         return Err(\"ydotool is disabled on Wayland; a consented XDG Remote Desktop portal session is required\".to_string());
     }
+    ydotool::ensure_supported()?;
     let mut command = TokioCommand::new(\"ydotool\");
+"""
+
+ORIGINAL_UNUSED_YDOTOOL_HELPERS = """fn ydotool_backend_available() -> bool {
+    ydotool_backend_available_from(
+        ydotool_socket_connectable(),
+        ydotool::ensure_supported().is_ok(),
+    )
+}
+
+fn ydotool_socket_connectable() -> bool {
+    if let Some(socket) = explicit_ydotool_socket() {
+        return ydotool_socket_connects(&PathBuf::from(socket));
+    }
+    connectable_ydotool_socket_from(fallback_ydotool_socket_candidates()).is_some()
+}
+
+fn ydotool_backend_available_from(socket_available: bool, cli_supported: bool) -> bool {
+    socket_available && cli_supported
+}
+
+fn should_prefer_portal_backend_by_default(is_wayland: bool, ydotool_available: bool) -> bool {
+    is_wayland && !ydotool_available
+}
+"""
+PATCHED_UNUSED_YDOTOOL_HELPERS = """// Wayland selects the consented portal directly, without probing legacy ydotool.
+"""
+
+ORIGINAL_UNUSED_YDOTOOL_TEST = """    #[test]
+    fn legacy_ydotool_socket_does_not_suppress_portal_fallback() {
+        let legacy_ydotool_available = ydotool_backend_available_from(true, false);
+        let current_ydotool_available = ydotool_backend_available_from(true, true);
+
+        assert!(should_prefer_portal_backend_by_default(
+            true,
+            legacy_ydotool_available
+        ));
+        assert!(!should_prefer_portal_backend_by_default(
+            true,
+            current_ydotool_available
+        ));
+        assert!(!should_prefer_portal_backend_by_default(
+            false,
+            legacy_ydotool_available
+        ));
+    }
+"""
+PATCHED_UNUSED_YDOTOOL_TEST = """    // Portal preference no longer depends on ambient ydotool socket state.
 """
 
 
@@ -332,6 +390,16 @@ TRANSFORMS = (
     ("type_text portal focus revalidation", (ORIGINAL_PORTAL_TYPE_TEXT,), PATCHED_PORTAL_TYPE_TEXT),
     ("block ydotool actions on Wayland", (ORIGINAL_YDOTOOL_COMMAND,), PATCHED_YDOTOOL_COMMAND),
     ("block ydotool text on Wayland", (ORIGINAL_YDOTOOL_TYPE,), PATCHED_YDOTOOL_TYPE),
+    (
+        "remove obsolete ydotool availability probes",
+        (ORIGINAL_UNUSED_YDOTOOL_HELPERS,),
+        PATCHED_UNUSED_YDOTOOL_HELPERS,
+    ),
+    (
+        "remove obsolete ydotool portal preference test",
+        (ORIGINAL_UNUSED_YDOTOOL_TEST,),
+        PATCHED_UNUSED_YDOTOOL_TEST,
+    ),
 )
 
 

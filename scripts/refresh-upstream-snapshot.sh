@@ -3,9 +3,9 @@ set -Eeuo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 repo_dir="$(cd -- "$script_dir/.." && pwd -P)"
-artifact="$repo_dir/ChatGPT-work.dmg"
+artifact="${CHATGPT_WORK_DMG_PATH:-${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/upstream/ChatGPT-work.dmg}"
 snapshot="$repo_dir/docs/upstream-snapshot.json"
-cache_dir="${CHATGPT_WORK_CACHE_DIR:-$repo_dir/.cache/upstream}"
+cache_dir="${CHATGPT_WORK_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/upstream}"
 candidate="$cache_dir/upstream-snapshot.candidate.json"
 headers="$cache_dir/response.headers"
 offline=0
@@ -19,7 +19,7 @@ Refresh the checked-in, metadata-only snapshot of the official unified ChatGPT D
 The DMG stays gitignored and is never executed, patched, or packaged.
 
 Options:
-  --artifact PATH  ignored local DMG path (default: ./ChatGPT-work.dmg)
+  --artifact PATH  private local DMG path (default: XDG cache)
   --snapshot PATH  metadata JSON to check/update
   --offline        inspect the existing artifact without network access
   --check          fail when the checked-in snapshot differs; do not update it

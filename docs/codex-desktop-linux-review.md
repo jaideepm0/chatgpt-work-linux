@@ -1,9 +1,9 @@
 # External compatibility adapter review
 
-Date: 2026-07-13
+Date: 2026-07-17
 
 The external checkout at `~/programs/codex-desktop-linux` was fetched and
-reviewed at `a8dbcb954f6108070b5633afef69792bf12f5507`. It is not vendored,
+reviewed at `b24e5ff2cfabbd1a366f711229b3b115aa4397fe`. It is not vendored,
 submoduled, or copied into this repository. `prepare-compat-adapter.sh` requires
 a clean checkout, resolves a commit, and creates an immutable cache archive by
 commit hash.
@@ -17,9 +17,9 @@ commit hash.
 - Desktop integrations needed by the unified local application plane.
 
 The exact accepted report for each local build is stored under
-`.work/reports/<version>/`. For ChatGPT `26.707.62119`, the upstream-build
-acceptance profile passed. The only remaining warning was an optional tooltip
-collision.
+`.work/reports/<version>/`. For ChatGPT `26.715.21425`, the upstream-build
+acceptance profile passed with eight recorded optional drift warnings; all
+required capability and security patches passed.
 
 ## Components overridden by this repository
 
@@ -33,7 +33,7 @@ The generated adapter launcher was not accepted unchanged:
 | Startup Quick Chat prewarm | Exact same-size ASAR patch to keep it lazy |
 | Linux Computer Use rollout remains unavailable in the final renderer | Exact same-size host/feature gate patch plus semantic validation |
 | Wayland input can select uinput/`ydotool` and keyboard focus can change after portal setup | Exact-source transform forces the XDG portal, blocks unsafe fallbacks, and revalidates targeted focus immediately before input |
-| Broad/default runtime identity | Isolated `chatgpt-work-linux` XDG profile and stable desktop ID |
+| Broad/default runtime identity | Isolated Electron XDG profile, canonical Codex home, and stable desktop ID |
 | Potentially growing launcher log | Bound and trim the operational log |
 | Mutable install replacement | Immutable content-addressed versions and atomic symlink switch |
 

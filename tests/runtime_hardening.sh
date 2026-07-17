@@ -55,7 +55,7 @@ if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/missing-computer-
 fi
 
 valid_report="$temporary/valid-report.json"
-printf '%s\n' '{"patches":[' \
+printf '%s\n' '{"enabledFeatures":[],"patches":[' \
   '{"name":"linux-computer-use-ui-feature","status":"applied"},' \
   '{"name":"linux-computer-use-plugin-gate","status":"already-applied"},' \
   '{"name":"linux-computer-use-native-desktop-apps","status":"applied"},' \
@@ -71,6 +71,83 @@ if python3 "$repo_root/scripts/validate-work-patch-report.py" "$invalid_report" 
   printf 'runtime_hardening: validator accepted a disabled Computer Use UI patch\n' >&2
   exit 1
 fi
+
+unexpected_feature_report="$temporary/unexpected-feature-report.json"
+sed 's/"enabledFeatures":\[\]/"enabledFeatures":["open-target-discovery"]/' \
+  "$valid_report" >"$unexpected_feature_report"
+if python3 "$repo_root/scripts/validate-work-patch-report.py" "$unexpected_feature_report" >/dev/null 2>&1; then
+  printf 'runtime_hardening: validator accepted an unreviewed Linux feature\n' >&2
+  exit 1
+fi
+
+launcher_fixture="$temporary/start.sh"
+cat >"$launcher_fixture" <<'SH'
+#!/usr/bin/env bash
+CODEX_LINUX_WEBVIEW_PORT=${CODEX_WEBVIEW_PORT:-5176}
+CODEX_LINUX_APP_ID=io.github.chatgpt_work_linux
+if [ -z "${CODEX_HOME:-}" ]; then
+    if [ -n "${HOME:-}" ]; then
+        CODEX_HOME="$HOME/.codex"
+    else
+        CODEX_HOME=""
+    fi
+fi
+export CODEX_HOME CODEX_LINUX_APP_ID CODEX_LINUX_APP_DISPLAY_NAME
+APP_NOTIFICATION_ICON_NAME="$CODEX_LINUX_APP_ID"
+    ELECTRON_LAUNCH_ARGS=(
+        --no-sandbox
+        --class="$CODEX_LINUX_APP_ID"
+        --app-id="$CODEX_LINUX_APP_ID"
+        --disable-gpu-sandbox
+    )
+    run_packaged_runtime_prelaunch
+    log_phase "packaged_prelaunch"
+    start_webview_server
+if ! truthy_env_value "${CODEX_LINUX_ALLOW_RENDERER_URL_OVERRIDE:-}"; then
+    if [ -n "${ELECTRON_RENDERER_URL:-}" ] && [ "$ELECTRON_RENDERER_URL" != "$WEBVIEW_ORIGIN/" ]; then
+        echo "Ignoring inherited ELECTRON_RENDERER_URL; set CODEX_LINUX_ALLOW_RENDERER_URL_OVERRIDE=1 to allow overrides"
+    fi
+    export ELECTRON_RENDERER_URL="$WEBVIEW_ORIGIN/"
+else
+    export ELECTRON_RENDERER_URL="${ELECTRON_RENDERER_URL:-$WEBVIEW_ORIGIN/}"
+fi
+    await_webview_server_ready
+fi
+resolve_browser_use_runtime_env
+    exec >>"$LOG_FILE" 2>&1
+"$SCRIPT_DIR/electron"
+SH
+chmod +x "$launcher_fixture"
+python3 "$repo_root/scripts/configure-work-runtime.py" "$launcher_fixture" \
+  --upstream-version 26.715.21425
+rg -Fq 'CODEX_ELECTRON_DISABLE_GPU_COMPOSITING=0' "$launcher_fixture" || {
+  printf 'runtime_hardening: native Wayland GPU compositing default is missing\n' >&2
+  exit 1
+}
+rg -Fq 'CODEX_FORCE_RENDERER_ACCESSIBILITY=0' "$launcher_fixture" || {
+  printf 'runtime_hardening: bounded renderer accessibility default is missing\n' >&2
+  exit 1
+}
+rg -Fq -- '--force-prefers-reduced-motion' "$launcher_fixture" || {
+  printf 'runtime_hardening: low-CPU reduced-motion default is missing\n' >&2
+  exit 1
+}
+rg -Fq 'CODEX_HOME="$HOME/.codex"' "$launcher_fixture" || {
+  printf 'runtime_hardening: canonical Codex history home is missing\n' >&2
+  exit 1
+}
+rg -Fq 'if [ -n "${CHATGPT_WORK_CODEX_HOME:-}" ]; then' "$launcher_fixture" || {
+  printf 'runtime_hardening: disposable Codex home override is missing\n' >&2
+  exit 1
+}
+! rg -Fq 'CODEX_HOME="${XDG_DATA_HOME:-$HOME/.local/share}/$CODEX_LINUX_APP_ID/codex-home"' "$launcher_fixture" || {
+  printf 'runtime_hardening: launcher still splits local Codex history\n' >&2
+  exit 1
+}
+! rg -q -- '--no-sandbox|--disable-gpu-sandbox|start_webview_server$' "$launcher_fixture" || {
+  printf 'runtime_hardening: configured launcher retained an unsafe runtime path\n' >&2
+  exit 1
+}
 
 server_fixture="$temporary/server.rs"
 python3 - "$repo_root/scripts/patch-computer-use-wayland.py" "$server_fixture" <<'PY'
@@ -109,6 +186,10 @@ rg -Fq 'fn should_prefer_portal_pointer_backend(&self) -> bool {' "$server_fixtu
   printf 'runtime_hardening: Wayland portal pointer preference is missing\n' >&2
   exit 1
 }
+if rg -q 'ydotool_backend_available|should_prefer_portal_backend_by_default' "$server_fixture"; then
+  printf 'runtime_hardening: obsolete ydotool availability probes remain\n' >&2
+  exit 1
+fi
 python3 "$repo_root/scripts/patch-computer-use-wayland.py" "$server_fixture" >/dev/null
 printf 'drifted\n' >"$server_fixture"
 if python3 "$repo_root/scripts/patch-computer-use-wayland.py" "$server_fixture" >/dev/null 2>&1; then

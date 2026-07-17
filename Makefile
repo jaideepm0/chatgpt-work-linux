@@ -1,26 +1,40 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := build
 
-.PHONY: build check clean doctor install-user refresh-upstream run sbom smoke-wayland test uninstall-user
+.PHONY: build check check-update clean doctor ensure-build install-user migrate-codex-history profile-runtime refresh-upstream run sbom smoke-wayland test uninstall-user update-user
 
 build:
 	bash scripts/fetch-upstream.sh
-	bash scripts/build-work-app.sh ./ChatGPT-work.dmg
+	bash scripts/build-work-app.sh
 
-run: build
+check-update:
+	bash scripts/check-upstream.sh
+
+ensure-build:
+	@expected=$$(python3 -c 'import json; print(json.load(open("docs/upstream-snapshot.json"))["application"]["short_version"])'); \
+	if [ ! -x .work/chatgpt-work-app/start.sh ] || \
+	   ! rg -q "^CHATGPT_WORK_UPSTREAM_VERSION=$$expected$$" .work/chatgpt-work-app/start.sh; then \
+		$(MAKE) build; \
+	fi
+
+run: ensure-build
 	./.work/chatgpt-work-app/start.sh
 
-doctor: build
+doctor: ensure-build
 	./.work/chatgpt-work-app/start.sh doctor
 
-smoke-wayland: build
+smoke-wayland: ensure-build
 	bash scripts/smoke-wayland.sh ./.work/chatgpt-work-app/start.sh
+
+profile-runtime: ensure-build
+	bash scripts/profile-runtime.sh ./.work/chatgpt-work-app/start.sh
 
 test:
 	env PATH=/usr/bin:/bin cargo test --locked
 	bash tests/upstream_tooling.sh
 	bash tests/runtime_hardening.sh
-	python3 -m py_compile scripts/configure-work-runtime.py scripts/patch-computer-use-wayland.py scripts/patch-work-asar.py scripts/validate-work-patch-report.py scripts/inspect-upstream.py
+	bash tests/codex_history_migration.sh
+	python3 -m py_compile scripts/configure-work-runtime.py scripts/migrate-codex-history.py scripts/patch-compat-adapter.py scripts/patch-computer-use-wayland.py scripts/patch-work-asar.py scripts/validate-work-patch-report.py scripts/inspect-upstream.py
 
 check:
 	env PATH=/usr/bin:/bin cargo fmt --all -- --check
@@ -41,8 +55,14 @@ sbom:
 refresh-upstream:
 	bash scripts/refresh-upstream-snapshot.sh
 
-install-user: build
+update-user:
+	bash scripts/update-user.sh
+
+install-user: ensure-build
 	bash scripts/install-user.sh
+
+migrate-codex-history:
+	python3 scripts/migrate-codex-history.py
 
 uninstall-user:
 	bash scripts/uninstall-user.sh

@@ -23,6 +23,10 @@ download.
   and the application cannot regress to the development URL.
 - Removes the unconditional startup Quick Chat prewarm that created a second
   blank window on Linux; Quick Chat remains available when requested.
+- Requests Chromium's standard reduced-motion mode by default. This removes a
+  persistent virtual-Wayland renderer animation load without patching styles;
+  users who prefer full motion can add `--force-prefers-no-reduced-motion` to
+  the generated `electron-flags.conf` file.
 - Requires the adapter's Linux Computer Use UI, install-flow, native-app
   discovery, and backend-gate patches; a skipped capability patch fails the
   build instead of rendering the plugin as unavailable.
@@ -33,7 +37,8 @@ download.
 - Refuses to publish an artifact if the Computer Use executable, MCP manifest,
   plugin manifest, or backend self-check is missing, even when the external
   adapter reports only a warning.
-- Keeps ChatGPT Work state in an isolated XDG profile, bounds launcher logs,
+- Keeps Electron state in an isolated XDG profile while using the canonical
+  Codex home for local tasks and project history, bounds launcher logs,
   validates native dependencies, and installs immutable releases atomically.
 
 Remote HTTPS content does not receive a shell bridge. The privileged desktop
@@ -46,11 +51,11 @@ time.
 | Field | Value |
 |---|---|
 | Official URL | `https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg` |
-| ChatGPT version | `26.707.62119` (bundle `5211`) |
-| Size | `615,738,501` bytes |
-| SHA-256 | `c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca` |
-| Electron | `42.1.0` |
-| Adapter commit | `a8dbcb954f6108070b5633afef69792bf12f5507` |
+| ChatGPT version | `26.715.21425` (bundle `5488`) |
+| Size | `618,657,103` bytes (590 MiB) |
+| SHA-256 | `ff459150991612007549270d2d28c5e78cec6bd6ac200a7ada5ed6c031369b87` |
+| Electron | `42.3.0` |
+| Adapter commit | `b24e5ff2cfabbd1a366f711229b3b115aa4397fe` |
 
 The downloader rejects non-HTTPS redirects, unexpected hosts, artifacts at or
 below 500 MiB, size drift, hash drift, and invalid DMGs. The complete observed
@@ -85,6 +90,12 @@ verifies it against the checked-in snapshot, and publishes a completed build
 atomically at `.work/chatgpt-work-app`. `make install-user` publishes an
 immutable release under `~/.local/opt/chatgpt-work-linux`, switches `current`
 only after verification, and retains one previous release for rollback.
+
+The app and Codex CLI intentionally share `$CODEX_HOME` (normally `~/.codex`),
+so local Codex tasks and project threads remain visible on both surfaces. If a
+previous compatibility build wrote sessions to its short-lived isolated home,
+recover them once with `make migrate-codex-history`; the command backs up and
+transactionally merges only non-conflicting threads.
 
 Launch or inspect it with:
 

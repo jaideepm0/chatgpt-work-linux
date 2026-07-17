@@ -7,18 +7,18 @@ and Codex. The macOS download link resolves to:
 
 `https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg`
 
-Observation on 2026-07-13:
+Observation on 2026-07-17:
 
 | Field | Value |
 |---|---|
-| Size | 615,738,501 bytes |
-| SHA-256 | `c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca` |
-| Last-Modified | `Mon, 13 Jul 2026 06:53:09 GMT` |
-| ETag | `0x8DEE0AB667193CC` |
-| Display/version | ChatGPT `26.707.62119` (bundle `5211`) |
+| Size | 618,657,103 bytes (590 MiB) |
+| SHA-256 | `ff459150991612007549270d2d28c5e78cec6bd6ac200a7ada5ed6c031369b87` |
+| Last-Modified | `Fri, 17 Jul 2026 02:08:05 GMT` |
+| ETag | `0x8DEE3A83D124BF1` |
+| Display/version | ChatGPT `26.715.21425` (bundle `5488`) |
 | Bundle identifier | `com.openai.codex` |
-| Runtime | Electron `42.1.0`, ARM64 macOS host |
-| ASAR entries | 10,777 |
+| Runtime | Electron `42.3.0`, ARM64 macOS host |
+| ASAR entries | 10,778 |
 
 The 78 MiB legacy/classic download and the Codex-named DMG are not accepted as
 inputs. The downloader allowlists the URL above and rejects artifacts at or
@@ -50,7 +50,8 @@ This repository then applies stricter runtime invariants:
 - Chromium renderer sandbox retained;
 - Wayland Ozone and compositor-native decorations;
 - no unconditional startup Quick Chat window;
-- isolated XDG profile, bounded diagnostics, immutable atomic installation.
+- isolated XDG Electron profile, canonical Codex task home, bounded
+  diagnostics, and immutable atomic installation.
 
 The generated application and proprietary resources remain ignored local
 outputs and must not be redistributed.

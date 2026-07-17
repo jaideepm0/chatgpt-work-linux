@@ -197,6 +197,11 @@ for _ in {1..40}; do
   [[ -f $log_file ]] && rg -q 'window ready-to-show appearance=primary' "$log_file" && break
   sleep 0.25
 done
+rg -q 'window ready-to-show appearance=primary' "$log_file" || {
+  tail -n 120 "$log_file" >&2 || true
+  printf 'smoke-wayland: primary window never became ready\n' >&2
+  exit 1
+}
 rg -q 'Launching app .*packaged=true platform=linux' "$log_file" || {
   tail -n 120 "$log_file" >&2 || true
   printf 'smoke-wayland: Electron did not enter packaged mode\n' >&2

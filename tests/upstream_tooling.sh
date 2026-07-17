@@ -4,6 +4,7 @@ set -Eeuo pipefail
 REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 INSPECTOR="$REPO_DIR/scripts/inspect-upstream.py"
 FETCHER="$REPO_DIR/scripts/fetch-upstream.sh"
+CHECKER="$REPO_DIR/scripts/check-upstream.sh"
 OFFICIAL_URL="https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf -- "$TMP_DIR"' EXIT HUP INT TERM
@@ -404,6 +405,42 @@ if CHATGPT_WORK_CACHE_DIR="$TMP_DIR/rejected-cache" \
         --url 'https://example.invalid/ChatGPT.dmg' >/dev/null 2>&1; then
     fail "fetcher accepted a non-allowlisted host"
 fi
+
+# The lightweight updater check must perform HEAD only and honor its result
+# cache instead of contacting upstream on every invocation.
+CHECK_CACHE="$TMP_DIR/check-cache"
+heads_before=$(grep -c '^HEAD$' "$CURL_LOG" || true)
+check_result=$(
+  CHATGPT_WORK_CACHE_DIR="$CHECK_CACHE" \
+  CHATGPT_WORK_UPSTREAM_SNAPSHOT="$SNAPSHOT_ONE" \
+  CHATGPT_WORK_UPDATE_CHECK_INTERVAL_SECONDS=21600 \
+  CHATGPT_WORK_MIN_UPSTREAM_BYTES=1 \
+  CHATGPT_WORK_CURL="$FAKE_CURL" \
+  CURL_LOG="$CURL_LOG" \
+  FIXTURE_DMG="$DMG" \
+    "$CHECKER" --force --json
+)
+python3 - "$check_result" <<'PY'
+import json
+import sys
+result = json.loads(sys.argv[1])
+assert result["status"] == "current"
+assert result["cached"] is False
+assert result["remote"]["etag"] == "fixture-etag"
+PY
+heads_after_force=$(grep -c '^HEAD$' "$CURL_LOG" || true)
+[ "$heads_after_force" -eq $((heads_before + 1)) ] || \
+    fail "metadata updater check did not make exactly one HEAD request"
+CHATGPT_WORK_CACHE_DIR="$CHECK_CACHE" \
+CHATGPT_WORK_UPSTREAM_SNAPSHOT="$SNAPSHOT_ONE" \
+CHATGPT_WORK_UPDATE_CHECK_INTERVAL_SECONDS=21600 \
+CHATGPT_WORK_MIN_UPSTREAM_BYTES=1 \
+CHATGPT_WORK_CURL="$FAKE_CURL" \
+CURL_LOG="$CURL_LOG" \
+FIXTURE_DMG="$DMG" \
+    "$CHECKER" --json >/dev/null
+[ "$(grep -c '^HEAD$' "$CURL_LOG" || true)" -eq "$heads_after_force" ] || \
+    fail "metadata updater check ignored its rate-limit cache"
 
 git -C "$REPO_DIR" check-ignore -q ChatGPT-work.dmg || fail "ChatGPT-work.dmg is not gitignored"
 

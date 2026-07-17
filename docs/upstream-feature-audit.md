@@ -1,17 +1,17 @@
 # Unified ChatGPT feature audit
 
-Date: 2026-07-13
+Date: 2026-07-17
 
 ## Provenance
 
 | Field | Observation |
 |---|---|
 | Official artifact | `https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg` |
-| Version/build | `26.707.62119` / `5211` |
-| Size | 615,738,501 bytes |
-| SHA-256 | `c243c94f8de6a51f5530ffe1f8d0c1588733d890ac692e34aaca06d95ba637ca` |
-| Bundle/runtime | `com.openai.codex`, Electron 42.1.0 |
-| Adapter | `a8dbcb954f6108070b5633afef69792bf12f5507` |
+| Version/build | `26.715.21425` / `5488` |
+| Size | 618,657,103 bytes (590 MiB) |
+| SHA-256 | `ff459150991612007549270d2d28c5e78cec6bd6ac200a7ada5ed6c031369b87` |
+| Bundle/runtime | `com.openai.codex`, Electron 42.3.0 |
+| Adapter | `b24e5ff2cfabbd1a366f711229b3b115aa4397fe` |
 
 The snapshot was produced by bounded structural inspection. No Mach-O binary
 was executed. Exact component and privacy-key inventories are recorded in
@@ -49,6 +49,9 @@ For the current build:
 - The Chromium sandbox remains enabled.
 - The generated localhost renderer server is removed.
 - Quick Chat is lazy rather than prewarmed at startup.
+- Chromium reduced motion is the low-CPU default and remains user-overridable.
+- Local Codex task/project history uses the canonical `~/.codex` store shared
+  with the prior Codex app and CLI; Electron state remains XDG-isolated.
 - Wayland input is portal-only; direct uinput/`ydotool` paths are disabled and
   targeted keyboard actions recheck compositor focus immediately before input.
 - Portal denial/cancellation and missing optional capabilities must fail

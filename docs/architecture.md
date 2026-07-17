@@ -33,10 +33,11 @@ repository hardening pass
   - Chromium sandbox flags retained
   - Wayland-only Ozone default
   - startup blank-window prewarm removed
+  - Chromium reduced-motion preference for bounded idle rendering
   - Linux Computer Use UI and capability gates required
   - final renderer Computer Use platform predicate verified byte-for-byte
   - portal-only Wayland input with last-moment target-focus verification
-  - XDG profile isolation and bounded diagnostics
+  - XDG Electron-profile isolation + canonical Codex task home
         |
         v
 staged validation -> atomic build publication -> immutable user install
@@ -67,11 +68,14 @@ is required by the installed product.
 
 The installed entry point is a small generated supervisor. It acquires the
 adapter's instance/lifecycle controls, starts the packaged app-server and
-Electron executable, and uses an isolated XDG data root. Static renderer files
-load through Electron's registered `app://` scheme. There is no TCP asset
-server, development URL, unattended dependency update, or native-module
-compilation. If no compatible Codex CLI is installed, the adapter retains its
-explicit user-confirmed CLI installation prompt.
+Electron executable, and uses an isolated XDG root for Electron state. Local
+Codex task, project, and CLI history stays in `$CODEX_HOME` (normally
+`~/.codex`), matching the established Codex desktop and CLI boundary. A
+disposable `CHATGPT_WORK_CODEX_HOME` override exists only for tests and
+profiling. Static renderer files load through Electron's registered `app://`
+scheme. There is no TCP asset server, development URL, unattended dependency
+update, or native-module compilation. If no compatible Codex CLI is installed,
+the adapter retains its explicit user-confirmed CLI installation prompt.
 
 Electron runs on Wayland with standard compositor decorations. Renderer
 processes must report `--enable-sandbox`; the build and smoke test reject
@@ -91,6 +95,12 @@ are verified before `current` is switched; `previous` retains the last release.
 Desktop metadata is published atomically. Failed fetch, build, patch,
 validation, or install never removes the active release. Profiles are preserved
 by default on uninstall.
+
+The former compatibility-only XDG Codex home can be recovered with the explicit
+history migration tool. It checks matching SQLx schemas, backs up the target
+database under XDG state, copies only missing rollout files atomically, rewrites
+their paths, merges rows in one SQLite transaction, and verifies the resulting
+database. It never duplicates the established multi-gigabyte Codex store.
 
 Logs are bounded and operational diagnostics go to stderr/journald. Updates
 are explicit build/install transactions—there is no polling updater.
