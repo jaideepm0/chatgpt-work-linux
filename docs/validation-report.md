@@ -25,7 +25,7 @@ sandbox, or required Computer Use capability.
 ## Build and hardening validation
 
 - A clean `make build` completed from the exact official artifact and current
-  cached adapter archive, producing a 763 MiB staged application.
+  cached adapter archive, producing a 765 MiB staged application.
 - The generated build contains `chatgpt-work-linux-bin`, the packaged renderer,
   app-server, plugins, rebuilt Linux native modules, provenance reports, and a
   complete SHA-256 manifest.
@@ -37,6 +37,12 @@ sandbox, or required Computer Use capability.
 - An exact, same-length ASAR patch removes only the unconditional Linux startup
   Quick Chat prewarm. This eliminates the second blank startup window without
   changing ASAR offsets or removing on-demand Quick Chat.
+- The same fail-closed patch connects tray startup to its persisted default-on
+  setting and treats the absence of the official runtime's private
+  `Tray.whenReady()`/`Tray.isReady()` extensions as success. Stock Electron's
+  public Tray constructor is synchronous and chooses StatusNotifierItem before
+  its standard legacy Linux fallback; no desktop-specific tray backend was
+  added.
 - The same byte-stable patch step changes the final Computer Use host predicate
   from macOS/Windows to Linux/Windows for this Linux-only artifact and resolves
   its otherwise unavailable rollout/feature inputs to fixed Linux build values.
@@ -46,10 +52,19 @@ sandbox, or required Computer Use capability.
 - Native shared libraries resolved, the managed Node runtime reported v22, and
   required shell/desktop/AppStream validations passed.
 - Chromium's documented reduced-motion preference is requested by default.
-  In the same virtual-Wayland/two-core 30-second A/B profile, settled CPU fell
-  from 88.44% to 5.05%; renderer CPU fell from 58.05% to 0.96%. This is a
-  command-line preference rather than a renderer or style patch, and users can
-  explicitly request full motion in `electron-flags.conf`.
+  This is a command-line preference rather than a renderer or style patch, and
+  users can explicitly request full motion in `electron-flags.conf`. Upstream
+  already leaves normal hidden-window background throttling enabled and
+  dynamically throttles inactive Browser views, so the compatibility layer
+  does not add redundant lifecycle hooks or speculative Chromium switches.
+
+Repeated final two-core profiles show the cost and variability of the complete
+signed-in unified surface honestly: cold ready 3.071-14.251 seconds, second
+process-tree ready 3.068-11.453 seconds, live warm handoff 0.526-0.805 seconds,
+9 processes, settled PSS 923.6-1,117.4 MiB, peak PSS 1,169.7-1,180.2 MiB, and
+settled aggregate CPU 1.98-51.78%. The detailed quiescent sample attributed
+1.98% CPU to the Codex app-server and 0.50% to the renderer. Account/catalog
+background work caused the high sample; it is not relabeled as idle.
 
 The strict 768 MiB cgroup lane does not pass: the kernel OOM-killed the final
 profile at the configured 768 MiB peak while loading the unified renderer,
@@ -89,7 +104,11 @@ The isolated Wayland smoke test passed and observed:
   pointer, keyboard, text, screenshot, accessibility, and window tools;
 - Computer Use doctor selecting `portal` for input and screenshot, `kwin` for
   exact window control, and `at_spi` for accessibility with no blockers;
-- clean launch and teardown using temporary XDG state.
+- clean launch and teardown using temporary XDG state;
+- a freedesktop StatusNotifierItem whose D-Bus owner PID was the tested
+  Electron main process;
+- a bounded warm-start IPC handoff that preserved the Electron PID and avoided
+  a second renderer/app-server tree.
 
 Interactive KWin validation showed the unified product—not the public Work
 marketing page—with Chat, Codex/New task, Scheduled, Plugins, Sites, pull
@@ -118,7 +137,7 @@ Installed doctor output:
 ```
 
 The verified user release is
-`~/.local/opt/chatgpt-work-linux/versions/26.715.21425-aab24be426347a9c`;
+`~/.local/opt/chatgpt-work-linux/versions/26.715.21425-f388d7a8a520685d`;
 `current` and `previous` are immutable releases. Its Computer Use backend
 SHA-256 is `f06f368779f907e1ada57231b8b222cd21668935adbc83a9faac5fd8ef6306e0`.
 The unrelated

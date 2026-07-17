@@ -9,6 +9,15 @@ from pathlib import Path
 import re
 
 
+def replace_same_size(payload: bytes, old: bytes, new: bytes, label: str) -> bytes:
+    count = payload.count(old)
+    if count != 1:
+        raise SystemExit(f"patch-work-asar: expected one {label}, found {count}")
+    if len(new) > len(old):
+        raise SystemExit(f"patch-work-asar: {label} replacement is too large")
+    return payload.replace(old, new + (b" " * (len(old) - len(new))), 1)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("asar", type=Path)
@@ -16,14 +25,37 @@ def main() -> None:
 
     prewarm_anchor = b"process.platform===`linux`&&codexLinuxPrewarmHotkeyWindow()"
     payload = args.asar.read_bytes()
-    count = payload.count(prewarm_anchor)
-    if count != 1:
-        raise SystemExit(f"patch-work-asar: expected one startup prewarm call, found {count}")
-
     # Keep the ASAR byte layout unchanged: replacing with a same-width no-op
     # avoids changing archive offsets while retaining Quick Chat on demand.
-    prewarm_replacement = b"void 0" + (b" " * (len(prewarm_anchor) - len(b"void 0")))
-    patched = payload.replace(prewarm_anchor, prewarm_replacement, 1)
+    patched = replace_same_size(payload, prewarm_anchor, b"void 0", "startup prewarm call")
+
+    # The current upstream creates a tray on Linux unconditionally, leaving the
+    # reviewed Linux setting disconnected. Route the existing startup branch
+    # through the adapter's default-on setting helper. The replacement remains
+    # exactly the same size so ASAR offsets are unchanged.
+    tray_start_anchor = b"(A||process.platform===`linux`)&&Ce()"
+    tray_start_replacement = b"(A||codexLinuxIsTrayEnabled())&&Ce() "
+    patched = replace_same_size(
+        patched, tray_start_anchor, tray_start_replacement, "Linux tray startup branch"
+    )
+
+    # The official runtime extends Tray with whenReady()/isReady(). Stock
+    # Electron implements the portable Tray API without those private methods.
+    # Its constructor is synchronous, so absence of the extensions is the
+    # successful fallback; treating it as failure immediately destroys the
+    # standard Linux tray and also disables close-to-tray.
+    patched = replace_same_size(
+        patched,
+        b"if(typeof t.whenReady!=`function`)return process.platform!==`linux`;",
+        b"if(typeof t.whenReady!=`function`)return!0;",
+        "portable Electron tray readiness fallback",
+    )
+    patched = replace_same_size(
+        patched,
+        b"return typeof t.isReady==`function`?t.isReady():process.platform!==`linux`",
+        b"return typeof t.isReady==`function`?t.isReady():!0",
+        "portable Electron tray state fallback",
+    )
 
     # The unified renderer's Computer Use hook still carries an upstream
     # macOS/Windows-only predicate. The adapter patches settings discovery, but

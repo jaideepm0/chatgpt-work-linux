@@ -36,6 +36,17 @@ assert report["rendererOrigin"] == "app://"
 PY
 
 runtime_root=$(dirname -- "$(readlink -f -- "$launcher")")
+tray_icon="$runtime_root/resources/icon-chatgpt.png"
+[[ -s $tray_icon ]] || {
+  printf 'smoke-wayland: packaged system tray icon is missing: %s\n' "$tray_icon" >&2
+  exit 1
+}
+python3 - "$tray_icon" <<'PY'
+from pathlib import Path
+import sys
+
+assert Path(sys.argv[1]).read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+PY
 computer_use_backend="$runtime_root/resources/plugins/openai-bundled/plugins/computer-use/bin/codex-computer-use-linux"
 [[ -x $computer_use_backend ]] || {
   printf 'smoke-wayland: Computer Use backend is missing or not executable: %s\n' "$computer_use_backend" >&2
@@ -215,5 +226,89 @@ rg -q 'initialize_handshake_result .*outcome=success' "$log_file" || {
   printf 'smoke-wayland: renderer fell back to localhost\n' >&2
   exit 1
 }
+! rg -q 'Failed to set up tray|tray-setup-failed|Linux tray application icon is unavailable' "$log_file" || {
+  printf 'smoke-wayland: system tray initialization failed\n' >&2
+  exit 1
+}
 
-printf 'wayland_smoke=passed electron_pid=%s renderer_origin=app:// sandbox=enabled computer_use=ready\n' "$electron_pid"
+# On Wayland, a visible portable Electron tray is a StatusNotifierItem. Match
+# its D-Bus owner PID instead of assuming a particular desktop environment or
+# accepting the mere absence of an application error.
+tray_registered=0
+tray_watcher_available=0
+for _ in {1..40}; do
+  if tray_items=$(gdbus call --session \
+      --dest org.kde.StatusNotifierWatcher \
+      --object-path /StatusNotifierWatcher \
+      --method org.freedesktop.DBus.Properties.Get \
+      org.kde.StatusNotifierWatcher RegisteredStatusNotifierItems 2>/dev/null); then
+    tray_watcher_available=1
+    while IFS= read -r tray_service; do
+      [[ -n $tray_service ]] || continue
+      owner=$(gdbus call --session \
+        --dest org.freedesktop.DBus \
+        --object-path /org/freedesktop/DBus \
+        --method org.freedesktop.DBus.GetConnectionUnixProcessID \
+        "$tray_service" 2>/dev/null || true)
+      [[ $owner == *"uint32 $electron_pid"* ]] && tray_registered=1
+    done < <(python3 -c \
+      'import re,sys; print("\n".join(item.split("/",1)[0] for item in re.findall(r"[\x27\x22]([^\x27\x22]+)[\x27\x22]", sys.stdin.read())))' \
+      <<<"$tray_items")
+  fi
+  [[ $tray_registered -eq 1 ]] && break
+  sleep 0.1
+done
+[[ $tray_watcher_available -eq 1 ]] || {
+  printf 'smoke-wayland: no StatusNotifier watcher is available in this Wayland session\n' >&2
+  exit 1
+}
+[[ $tray_registered -eq 1 ]] || {
+  printf 'smoke-wayland: Electron did not register a StatusNotifier tray item\n' >&2
+  exit 1
+}
+
+launch_socket="$temporary/runtime/chatgpt-work-linux/launch-action.sock"
+for _ in {1..40}; do
+  [[ -S $launch_socket ]] && break
+  sleep 0.1
+done
+[[ -S $launch_socket ]] || {
+  printf 'smoke-wayland: warm-start launch-action socket was not created\n' >&2
+  exit 1
+}
+
+warm_start_ns=$(date +%s%N)
+if ! timeout 10 env -u DISPLAY \
+  CODEX_OZONE_PLATFORM=wayland \
+  CHATGPT_WORK_CODEX_HOME="$temporary/data/codex-home" \
+  XDG_SESSION_TYPE=wayland \
+  XDG_RUNTIME_DIR="$temporary/runtime" \
+  XDG_CONFIG_HOME="$temporary/config" \
+  XDG_DATA_HOME="$temporary/data" \
+  XDG_CACHE_HOME="$temporary/cache" \
+  XDG_STATE_HOME="$temporary/state" \
+  "$launcher" --new-chat >"$temporary/warm-start.out" 2>&1; then
+  tail -n 80 "$temporary/warm-start.out" >&2 || true
+  tail -n 120 "$log_file" >&2 || true
+  printf 'smoke-wayland: warm-start handoff failed\n' >&2
+  exit 1
+fi
+warm_end_ns=$(date +%s%N)
+current_pid=$(<"$pid_file")
+[[ $current_pid == "$electron_pid" ]] && kill -0 "$electron_pid" 2>/dev/null || {
+  printf 'smoke-wayland: warm start replaced the active Electron process\n' >&2
+  exit 1
+}
+rg -q 'Sent launch args over warm-start IPC' "$log_file" || {
+  tail -n 100 "$log_file" >&2 || true
+  printf 'smoke-wayland: launcher did not use warm-start IPC\n' >&2
+  exit 1
+}
+warm_ms=$(( (warm_end_ns - warm_start_ns) / 1000000 ))
+(( warm_ms < 5000 )) || {
+  printf 'smoke-wayland: warm-start handoff took %s ms\n' "$warm_ms" >&2
+  exit 1
+}
+
+printf 'wayland_smoke=passed electron_pid=%s renderer_origin=app:// sandbox=enabled computer_use=ready tray=sni-ready warm_handoff_ms=%s\n' \
+  "$electron_pid" "$warm_ms"

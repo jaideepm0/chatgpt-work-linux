@@ -11,7 +11,11 @@ trap cleanup EXIT HUP INT TERM
 anchor='process.platform===`linux`&&codexLinuxPrewarmHotkeyWindow()'
 predicate='function ext(e){return e===`macOS`||e===`windows`}'
 availability='featureName:`computer_use`;g=rxt({areRequiredFeaturesEnabled:h,enabled:i,isAnyFeatureLoading:m,isComputerUseGateEnabled:s,isHostCompatiblePlatform:ext(o),isPlatformLoading:a,windowType:`electron`})'
-printf 'prefix%smiddle%snext%ssuffix' "$anchor" "$predicate" "$availability" >"$temporary/app.asar"
+tray_start='(A||process.platform===`linux`)&&Ce()'
+tray_wait='if(typeof t.whenReady!=`function`)return process.platform!==`linux`;'
+tray_state='return typeof t.isReady==`function`?t.isReady():process.platform!==`linux`'
+printf 'prefix%smiddle%snext%safter%sready%sstates%ssuffix' \
+  "$anchor" "$predicate" "$availability" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/app.asar"
 before_size=$(stat -c %s "$temporary/app.asar")
 python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/app.asar"
 after_size=$(stat -c %s "$temporary/app.asar")
@@ -21,6 +25,18 @@ after_size=$(stat -c %s "$temporary/app.asar")
 }
 ! rg -q 'codexLinuxPrewarmHotkeyWindow' "$temporary/app.asar" || {
   printf 'runtime_hardening: startup prewarm call remains\n' >&2
+  exit 1
+}
+rg -Fq '(A||codexLinuxIsTrayEnabled())&&Ce()' "$temporary/app.asar" || {
+  printf 'runtime_hardening: system tray is not gated by the default-on Linux setting\n' >&2
+  exit 1
+}
+rg -Fq 'if(typeof t.whenReady!=`function`)return!0;' "$temporary/app.asar" || {
+  printf 'runtime_hardening: standard Electron tray readiness fallback is missing\n' >&2
+  exit 1
+}
+rg -Fq 'return typeof t.isReady==`function`?t.isReady():!0' "$temporary/app.asar" || {
+  printf 'runtime_hardening: standard Electron tray state fallback is missing\n' >&2
   exit 1
 }
 rg -Fq 'function ext(e){return e===`linux`||e===`windows`}' "$temporary/app.asar" || {
@@ -36,26 +52,43 @@ if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/app.asar" >/dev/n
   exit 1
 fi
 
-printf '%s%s%s%s' "$anchor" "$anchor" "$predicate" "$availability" >"$temporary/ambiguous.asar"
+printf '%s%s%s%s%s%s%s' "$anchor" "$anchor" "$predicate" "$availability" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/ambiguous.asar"
 if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/ambiguous.asar" >/dev/null 2>&1; then
   printf 'runtime_hardening: patcher accepted an ambiguous input\n' >&2
   exit 1
 fi
 
-printf '%s%s' "$anchor" "$availability" >"$temporary/missing-computer-use-predicate.asar"
+printf '%s%s%s%s%s' "$anchor" "$availability" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/missing-computer-use-predicate.asar"
 if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/missing-computer-use-predicate.asar" >/dev/null 2>&1; then
   printf 'runtime_hardening: patcher accepted a missing Computer Use predicate\n' >&2
   exit 1
 fi
 
-printf '%s%s' "$anchor" "$predicate" >"$temporary/missing-computer-use-call.asar"
+printf '%s%s%s%s%s' "$anchor" "$predicate" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/missing-computer-use-call.asar"
 if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/missing-computer-use-call.asar" >/dev/null 2>&1; then
   printf 'runtime_hardening: patcher accepted a missing Computer Use availability call\n' >&2
   exit 1
 fi
 
+printf '%s%s%s%s%s' "$anchor" "$predicate" "$availability" "$tray_wait" "$tray_state" >"$temporary/missing-tray-start.asar"
+if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/missing-tray-start.asar" >/dev/null 2>&1; then
+  printf 'runtime_hardening: patcher accepted a missing tray startup branch\n' >&2
+  exit 1
+fi
+
+printf '%s%s%s%s%s' "$anchor" "$predicate" "$availability" "$tray_start" "$tray_state" >"$temporary/missing-tray-readiness.asar"
+if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/missing-tray-readiness.asar" >/dev/null 2>&1; then
+  printf 'runtime_hardening: patcher accepted a missing portable tray readiness fallback\n' >&2
+  exit 1
+fi
+
 valid_report="$temporary/valid-report.json"
 printf '%s\n' '{"enabledFeatures":[],"patches":[' \
+  '{"name":"linux-explicit-tray-quit","status":"applied"},' \
+  '{"name":"linux-launch-actions","status":"applied"},' \
+  '{"name":"linux-settings-persistence","status":"already-applied"},' \
+  '{"name":"linux-single-instance","status":"already-applied"},' \
+  '{"name":"linux-tray","status":"applied"},' \
   '{"name":"linux-computer-use-ui-feature","status":"applied"},' \
   '{"name":"linux-computer-use-plugin-gate","status":"already-applied"},' \
   '{"name":"linux-computer-use-native-desktop-apps","status":"applied"},' \
@@ -69,6 +102,14 @@ sed 's/"linux-computer-use-ui-availability","status":"applied"/"linux-computer-u
   "$valid_report" >"$invalid_report"
 if python3 "$repo_root/scripts/validate-work-patch-report.py" "$invalid_report" >/dev/null 2>&1; then
   printf 'runtime_hardening: validator accepted a disabled Computer Use UI patch\n' >&2
+  exit 1
+fi
+
+invalid_warm_report="$temporary/invalid-warm-report.json"
+sed 's/"linux-launch-actions","status":"applied"/"linux-launch-actions","status":"skipped-optional"/' \
+  "$valid_report" >"$invalid_warm_report"
+if python3 "$repo_root/scripts/validate-work-patch-report.py" "$invalid_warm_report" >/dev/null 2>&1; then
+  printf 'runtime_hardening: validator accepted disabled warm-start launch actions\n' >&2
   exit 1
 fi
 
@@ -114,6 +155,18 @@ fi
     await_webview_server_ready
 fi
 resolve_browser_use_runtime_env
+recover_unhealthy_running_app() {
+    running_app_is_active || return 0
+    webview_origin_is_reachable && return 0
+    echo "Detected live Electron with an unavailable packaged webview origin"
+    if ! terminate_stale_electron_with_pidfd "$RUNNING_APP_PID"; then
+        exit 1
+    fi
+}
+
+send_warm_start_launch_action() {
+    return 0
+}
     exec >>"$LOG_FILE" 2>&1
 "$SCRIPT_DIR/electron"
 SH
@@ -148,6 +201,18 @@ rg -Fq 'if [ -n "${CHATGPT_WORK_CODEX_HOME:-}" ]; then' "$launcher_fixture" || {
   printf 'runtime_hardening: configured launcher retained an unsafe runtime path\n' >&2
   exit 1
 }
+rg -Fq 'preserving it for Electron second-instance handoff' "$launcher_fixture" || {
+  printf 'runtime_hardening: packaged app recovery does not preserve the running process\n' >&2
+  exit 1
+}
+rg -Fq 'WARM_START=0' "$launcher_fixture" || {
+  printf 'runtime_hardening: missing launch socket does not select second-instance handoff\n' >&2
+  exit 1
+}
+if rg -Fq 'webview_origin_is_reachable && return 0' "$launcher_fixture"; then
+  printf 'runtime_hardening: packaged app recovery retained the obsolete localhost health probe\n' >&2
+  exit 1
+fi
 
 server_fixture="$temporary/server.rs"
 python3 - "$repo_root/scripts/patch-computer-use-wayland.py" "$server_fixture" <<'PY'

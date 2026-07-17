@@ -23,6 +23,15 @@ download.
   and the application cannot regress to the development URL.
 - Removes the unconditional startup Quick Chat prewarm that created a second
   blank window on Linux; Quick Chat remains available when requested.
+- Enables the native unified-app system tray with the exact production tray
+  resource expected by the packaged main process. The portable Electron API
+  is accepted when the official runtime's private tray-readiness extensions are absent;
+  Electron selects StatusNotifierItem or its standard Linux fallback.
+  Close-to-tray remains setting-controlled, and explicit Quit still drains the
+  app normally.
+- Enables default-on warm-start IPC: subsequent launches focus or navigate the
+  existing single instance instead of creating another Electron/app-server
+  process tree. This is process reuse, not background prewarming.
 - Requests Chromium's standard reduced-motion mode by default. This removes a
   persistent virtual-Wayland renderer animation load without patching styles;
   users who prefer full motion can add `--force-prefers-no-reduced-motion` to
@@ -89,7 +98,9 @@ make install-user
 verifies it against the checked-in snapshot, and publishes a completed build
 atomically at `.work/chatgpt-work-app`. `make install-user` publishes an
 immutable release under `~/.local/opt/chatgpt-work-linux`, switches `current`
-only after verification, and retains one previous release for rollback.
+only after verification, and retains one previous release for rollback. Tray
+and warm start are default-on when their setting is absent; an explicit user
+choice of `false` remains authoritative.
 
 The app and Codex CLI intentionally share `$CODEX_HOME` (normally `~/.codex`),
 so local Codex tasks and project threads remain visible on both surfaces. If a
@@ -127,7 +138,9 @@ make refresh-upstream
 
 Review snapshot and adapter drift before committing a new version. Required
 patch misses are fatal, including every Computer Use capability patch;
-optional misses remain visible in the patch report.
+optional misses remain visible in the patch report. Tray creation,
+close-to-tray quit handling, settings persistence, single-instance locking,
+and warm-start launch actions are mandatory too.
 Build reports are stored under `.work/reports/<version>/` and are ignored by
 Git.
 

@@ -9,6 +9,11 @@ from pathlib import Path
 
 
 REQUIRED_PATCHES = {
+    "linux-explicit-tray-quit",
+    "linux-launch-actions",
+    "linux-settings-persistence",
+    "linux-single-instance",
+    "linux-tray",
     "linux-computer-use-ui-feature",
     "linux-computer-use-plugin-gate",
     "linux-computer-use-native-desktop-apps",
@@ -59,7 +64,10 @@ def main() -> None:
             + "\n  - ".join(failures)
         )
 
-    print("Required Linux Computer Use patches passed; optional features are disabled.")
+    print(
+        "Required Linux tray, warm-start, single-instance, and Computer Use "
+        "patches passed; optional features are disabled."
+    )
 
 
 if __name__ == "__main__":

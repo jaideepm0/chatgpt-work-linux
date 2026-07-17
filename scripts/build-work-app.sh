@@ -78,6 +78,28 @@ python3 "$repo_root/scripts/validate-work-patch-report.py" \
 python3 "$repo_root/scripts/patch-work-asar.py" "$stage/resources/app.asar"
 python3 "$repo_root/scripts/configure-work-runtime.py" \
   "$stage/start.sh" --upstream-version "$version"
+
+# The unified ChatGPT tray factory resolves the reviewed production brand to
+# resources/icon-chatgpt.png. The adapter-provided desktop icon is the same
+# unmodified public OpenAI icon, but the generic installer stores it outside
+# resources. Preserve one small local copy at the exact packaged-runtime path.
+python3 - "$stage/resources/app.asar" <<'PY'
+from pathlib import Path
+import sys
+
+payload = Path(sys.argv[1]).read_bytes()
+anchors = {
+    b"case i.a.Dev:case i.a.Prod:return`icon-chatgpt`": "ChatGPT production tray brand",
+    b"if(process.platform===`linux`){let r=`${fv(e,t)}.png`": "Linux tray resource lookup",
+    b"(A||codexLinuxIsTrayEnabled())&&Ce() ": "default-on Linux tray startup",
+}
+for anchor, label in anchors.items():
+    count = payload.count(anchor)
+    if count != 1:
+        raise SystemExit(f"build-work-app: expected one {label} anchor, found {count}")
+PY
+install -m 0644 -- "$repo_root/assets/chatgpt-work-linux.png" \
+  "$stage/resources/icon-chatgpt.png"
 rm -f -- "$stage/.codex-linux/webview-server.py"
 # The app:// scheme reads the renderer from app.asar. Keep only the one native
 # BrowserWindow icon that the reviewed Linux patch addresses by filesystem
@@ -100,6 +122,14 @@ mv -- "$stage/electron" "$stage/chatgpt-work-linux-bin"
 [[ -x $stage/chatgpt-work-linux-bin ]] || fail 'Linux Electron executable is missing'
 [[ -x $stage/start.sh ]] || fail 'launcher is missing'
 [[ -s $stage/resources/app.asar ]] || fail 'patched app.asar is missing'
+[[ -s $stage/resources/icon-chatgpt.png ]] || fail 'system tray icon is missing'
+python3 - "$stage/resources/icon-chatgpt.png" <<'PY'
+from pathlib import Path
+import sys
+
+if Path(sys.argv[1]).read_bytes()[:8] != b"\x89PNG\r\n\x1a\n":
+    raise SystemExit("build-work-app: system tray icon is not a PNG")
+PY
 [[ -s $stage/$external_icon ]] || fail 'minimal external Linux window icon was not preserved'
 [[ $(find "$stage/content" -type f | wc -l) -eq 1 ]] || \
   fail 'obsolete localhost renderer files were packaged'
@@ -126,6 +156,21 @@ if rg -a -Fq 'function codexLinuxDiscoveredIdeTargets(' "$stage/resources/app.as
    rg -a -Fq 'codexLinuxWorkspaceRootOpenTarget:' "$stage/resources/app.asar"; then
   fail 'disabled editor-discovery integration was unexpectedly packaged'
 fi
+for runtime_anchor in \
+  'codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)!==!1' \
+  'codexLinuxIsTrayEnabled=()=>codexLinuxGetSetting(`codex-linux-system-tray-enabled`)' \
+  'codexLinuxIsWarmStartEnabled=()=>codexLinuxGetSetting(`codex-linux-warm-start-enabled`)' \
+  'if(typeof t.whenReady!=`function`)return!0;' \
+  'return typeof t.isReady==`function`?t.isReady():!0' \
+  'codexLinuxStartLaunchActionSocket=()=>' \
+  'codexLinuxDefaultLaunchActionSocket=()=>' \
+  'codexLinuxRegisterTray(new' \
+  'canHideLastWindowToTray?.()===!0'; do
+  rg -a -Fq "$runtime_anchor" "$stage/resources/app.asar" || \
+    fail "required tray/warm-start runtime anchor is missing: $runtime_anchor"
+done
+rg -Fq 'linux_setting_enabled "codex-linux-warm-start-enabled" 1' "$stage/start.sh" || \
+  fail 'warm-start launcher setting is not default-on'
 ldd "$stage/chatgpt-work-linux-bin" | rg -q 'not found' && fail 'Electron has unresolved shared libraries'
 bash -n "$stage/start.sh"
 "$stage/resources/node-runtime/bin/node" --version | rg -q '^v22\.' || fail 'managed Node runtime failed validation'

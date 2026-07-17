@@ -20,6 +20,13 @@ Date: 2026-07-17
   packaged `app://` origin.
 - Removed the unconditional Quick Chat prewarm responsible for the blank
   startup overlay while retaining on-demand Quick Chat.
+- Restored the native system tray resource, connected Linux tray startup to
+  its default-on setting, accepted the stock Electron tray lifecycle when
+  private upstream readiness methods are absent, and made explicit tray quit a
+  release gate. Runtime smoke matches the registered StatusNotifierItem to the
+  Electron PID rather than trusting the absence of an error.
+- Required warm-start socket handoff and single-instance patches and added a
+  bounded live handoff test that rejects a second Electron process tree.
 - Made all five Linux Computer Use UI/backend integration patches mandatory so
   an installed backend cannot be filtered out as unavailable in local tasks.
 - Forced Wayland pointer/keyboard input through XDG portals, blocked direct
@@ -41,7 +48,8 @@ Date: 2026-07-17
    commit must be recorded together.
 3. Every required adapter patch and repository hardening invariant must pass;
    optional skips must be reviewed rather than hidden.
-4. Confirm one main window at startup, `app://` renderer origin,
+4. Confirm one main window at startup, one live process tree after warm
+   handoff, a ready native tray, `app://` renderer origin,
    `app.isPackaged=true`, sandboxed renderer, Wayland Ozone, app-server
    handshake, and absence of a localhost asset server.
 5. Exercise sign-in, offline recovery, external URLs, upload/download,

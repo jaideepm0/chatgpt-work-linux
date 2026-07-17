@@ -259,6 +259,39 @@ ready_ns=$(date +%s%N)
 read -r warm_ready_pss _ _ < <(memory_kib "$electron_pid")
 (( warm_ready_pss > peak_pss )) && peak_pss=$warm_ready_pss
 
+# Measure the actual warm-start path while this second process tree remains
+# active. The handoff must reuse the same Electron main process and avoid a
+# second renderer/app-server tree.
+launch_socket="$temporary/runtime/chatgpt-work-linux/launch-action.sock"
+for _ in {1..40}; do
+  [[ -S $launch_socket ]] && break
+  sleep 0.1
+done
+[[ -S $launch_socket ]] || {
+  printf 'profile-runtime: warm-start launch-action socket was not created\n' >&2
+  exit 1
+}
+warm_handoff_start_ns=$(date +%s%N)
+timeout 10 env -u DISPLAY \
+  CODEX_OZONE_PLATFORM=wayland \
+  CHATGPT_WORK_CODEX_HOME="$temporary/data/codex-home" \
+  XDG_SESSION_TYPE=wayland \
+  XDG_RUNTIME_DIR="$temporary/runtime" \
+  XDG_CONFIG_HOME="$temporary/config" \
+  XDG_DATA_HOME="$temporary/data" \
+  XDG_CACHE_HOME="$temporary/cache" \
+  XDG_STATE_HOME="$temporary/state" \
+  taskset -c "$cpu_set" "$launcher" --new-chat >"$temporary/warm-handoff.out" 2>&1
+warm_handoff_end_ns=$(date +%s%N)
+[[ $(<"$pid_file") == "$electron_pid" ]] && kill -0 "$electron_pid" 2>/dev/null || {
+  printf 'profile-runtime: warm handoff replaced the active Electron process\n' >&2
+  exit 1
+}
+rg -q 'Sent launch args over warm-start IPC' "$log_file" || {
+  printf 'profile-runtime: warm handoff did not use IPC\n' >&2
+  exit 1
+}
+
 # Allow authentication, catalog sync, and first-render work to quiesce before
 # measuring idle CPU and settled memory.
 settle_samples=$settle_seconds
@@ -287,16 +320,18 @@ clock_ticks=$(getconf CLK_TCK)
 python3 - "$cold_start_ns" "$cold_ready_ns" "$cold_peak_pss" \
   "$start_ns" "$ready_ns" "$settled_pss" "$settled_rss" "$peak_pss" \
   "$process_count" "$ticks_before" "$ticks_after" "$cpu_start_ns" "$cpu_end_ns" \
-  "$clock_ticks" "$cpu_set" <<'PY'
+  "$clock_ticks" "$cpu_set" "$warm_handoff_start_ns" "$warm_handoff_end_ns" <<'PY'
 import sys
 (cold_start, cold_ready, cold_peak, start, ready, pss, rss, peak, processes,
- ticks0, ticks1, cpu0, cpu1, hz, cpus) = sys.argv[1:]
+ ticks0, ticks1, cpu0, cpu1, hz, cpus, handoff_start, handoff_end) = sys.argv[1:]
 cold_launch = (int(cold_ready) - int(cold_start)) / 1e9
 warm_launch = (int(ready) - int(start)) / 1e9
+warm_handoff = (int(handoff_end) - int(handoff_start)) / 1e9
 wall = (int(cpu1) - int(cpu0)) / 1e9
 cpu = ((int(ticks1) - int(ticks0)) / int(hz)) / wall * 100 if wall else 0
 print(f"cold_launch_to_ready_seconds={cold_launch:.3f}")
 print(f"warm_launch_to_ready_seconds={warm_launch:.3f}")
+print(f"warm_handoff_seconds={warm_handoff:.3f}")
 print(f"cpu_set={cpus}")
 print(f"process_count={processes}")
 print(f"settled_pss_mib={int(pss) / 1024:.1f}")

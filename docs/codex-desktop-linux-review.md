@@ -31,6 +31,10 @@ The generated adapter launcher was not accepted unchanged:
 | Python localhost server and `ELECTRON_RENDERER_URL` | Remove server and force packaged `app://` renderer |
 | `--no-sandbox` and `--disable-gpu-sandbox` | Remove and reject both flags at build/smoke time |
 | Startup Quick Chat prewarm | Exact same-size ASAR patch to keep it lazy |
+| Tray image omitted from generated `resources/` | Preserve the reviewed public ChatGPT icon as the exact `icon-chatgpt.png` resource required by the upstream tray factory |
+| Linux tray startup bypasses its persisted setting | Exact same-size ASAR patch routes startup through the adapter's default-on tray setting |
+| OpenAI tray readiness uses private methods absent from stock Electron | Exact same-size fallback accepts the documented synchronous portable `Tray` API; Electron owns SNI/legacy backend selection |
+| Tray/warm-start patches reported but not release-gated | Require tray, explicit quit, settings, single-instance, and launch-action statuses plus runtime semantic assertions |
 | Linux Computer Use rollout remains unavailable in the final renderer | Exact same-size host/feature gate patch plus semantic validation |
 | Wayland input can select uinput/`ydotool` and keyboard focus can change after portal setup | Exact-source transform forces the XDG portal, blocks unsafe fallbacks, and revalidates targeted focus immediately before input |
 | Broad/default runtime identity | Isolated Electron XDG profile, canonical Codex home, and stable desktop ID |

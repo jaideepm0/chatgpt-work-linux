@@ -15,6 +15,35 @@ def replace_once(source: str, old: str, new: str, label: str) -> str:
     return source.replace(old, new, 1)
 
 
+def replace_section(
+    source: str,
+    start_anchor: str,
+    end_anchor: str,
+    replacement: str,
+    label: str,
+    required_fragments: tuple[str, ...],
+) -> str:
+    """Replace one reviewed launcher section while failing closed on drift."""
+    start_count = source.count(start_anchor)
+    end_count = source.count(end_anchor)
+    if start_count != 1 or end_count != 1:
+        raise SystemExit(
+            f"configure-work-runtime: expected one {label} boundary, "
+            f"found start={start_count} end={end_count}"
+        )
+    start = source.index(start_anchor)
+    end = source.index(end_anchor, start)
+    section = source[start:end]
+    for fragment in required_fragments:
+        count = section.count(fragment)
+        if count != 1:
+            raise SystemExit(
+                f"configure-work-runtime: expected one {label} fragment "
+                f"{fragment!r}, found {count}"
+            )
+    return source[:start] + replacement + source[end:]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("launcher", type=Path)
@@ -154,6 +183,32 @@ fi
         "    await_webview_server_ready\nfi\nresolve_browser_use_runtime_env",
         "    : # packaged app:// renderer needs no local server readiness probe\nfi\nresolve_browser_use_runtime_env",
         "webview readiness call",
+    )
+    source = replace_section(
+        source,
+        "recover_unhealthy_running_app() {\n",
+        "send_warm_start_launch_action() {\n",
+        """recover_unhealthy_running_app() {
+    running_app_is_active || return 0
+
+    if [ -S "$LAUNCH_ACTION_SOCKET" ]; then
+        return 0
+    fi
+
+    # A verified packaged app:// process does not have a localhost renderer to
+    # probe. Preserve it and use Electron's native second-instance handoff if
+    # the optional launch-action socket is absent or still being established.
+    echo "Running packaged app:// Electron pid=$RUNNING_APP_PID has no launch-action socket; preserving it for Electron second-instance handoff"
+    WARM_START=0
+}
+
+""",
+        "packaged app recovery",
+        (
+            "webview_origin_is_reachable && return 0",
+            "terminate_stale_electron_with_pidfd",
+            "unavailable packaged webview origin",
+        ),
     )
     source = replace_once(
         source,

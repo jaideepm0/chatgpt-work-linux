@@ -33,6 +33,8 @@ repository hardening pass
   - Chromium sandbox flags retained
   - Wayland-only Ozone default
   - startup blank-window prewarm removed
+  - native tray resource + default-on close-to-tray lifecycle
+  - warm-start socket handoff + single-instance reuse required
   - Chromium reduced-motion preference for bounded idle rendering
   - Linux Computer Use UI and capability gates required
   - final renderer Computer Use platform predicate verified byte-for-byte
@@ -82,6 +84,26 @@ processes must report `--enable-sandbox`; the build and smoke test reject
 `--no-sandbox` and `--disable-gpu-sandbox`. The app-server protocol is exposed
 only to the packaged local application plane. Ordinary remote web content does
 not receive native IPC or shell access.
+
+The system tray and warm start are lifecycle features, not additional
+services. The tray uses the packaged `resources/icon-chatgpt.png` expected by
+the current reviewed upstream main process and Electron's portable Linux tray
+implementation. The official runtime's private
+`Tray.whenReady()`/`Tray.isReady()` extensions
+are optional; the stock API's synchronous constructor is treated as ready, as
+documented by Electron. Electron itself chooses StatusNotifierItem first and
+falls back to `GtkStatusIcon`, so production code contains no desktop-specific
+tray backend. A second launch sends one bounded Unix-socket action to the
+already running application and exits; it does not start another renderer or
+app-server. The build keeps Quick Chat prewarming disabled, so enabling warm
+start adds no hidden window or idle renderer. An absent tray or warm-start
+setting means enabled in the reviewed packaged helper and launcher; explicit
+user choices remain authoritative.
+
+Tray portability follows Electron's public Linux contract
+(`https://www.electronjs.org/docs/latest/api/tray/`) and the freedesktop
+StatusNotifierItem protocol
+(`https://specifications.freedesktop.org/status-notifier-item/latest/`).
 
 The upstream application owns Chat, Work, Codex, authentication, plugins,
 Sites, schedules, and feature settings. Linux patches own compositor behavior,
