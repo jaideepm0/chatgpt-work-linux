@@ -14,8 +14,9 @@ availability='featureName:`computer_use`;g=rxt({areRequiredFeaturesEnabled:h,ena
 tray_start='(A||process.platform===`linux`)&&Ce()'
 tray_wait='if(typeof t.whenReady!=`function`)return process.platform!==`linux`;'
 tray_state='return typeof t.isReady==`function`?t.isReady():process.platform!==`linux`'
-printf 'prefix%smiddle%snext%safter%sready%sstates%ssuffix' \
-  "$anchor" "$predicate" "$availability" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/app.asar"
+setting_default='codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)!==!1'
+printf 'prefix%ssetting%smiddle%snext%safter%sready%sstates%ssuffix' \
+  "$setting_default" "$anchor" "$predicate" "$availability" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/app.asar"
 before_size=$(stat -c %s "$temporary/app.asar")
 python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/app.asar"
 after_size=$(stat -c %s "$temporary/app.asar")
@@ -28,7 +29,7 @@ after_size=$(stat -c %s "$temporary/app.asar")
   exit 1
 }
 rg -Fq '(A||codexLinuxIsTrayEnabled())&&Ce()' "$temporary/app.asar" || {
-  printf 'runtime_hardening: system tray is not gated by the default-on Linux setting\n' >&2
+  printf 'runtime_hardening: system tray is not gated by the Linux setting\n' >&2
   exit 1
 }
 rg -Fq 'if(typeof t.whenReady!=`function`)return!0;' "$temporary/app.asar" || {
@@ -37,6 +38,14 @@ rg -Fq 'if(typeof t.whenReady!=`function`)return!0;' "$temporary/app.asar" || {
 }
 rg -Fq 'return typeof t.isReady==`function`?t.isReady():!0' "$temporary/app.asar" || {
   printf 'runtime_hardening: standard Electron tray state fallback is missing\n' >&2
+  exit 1
+}
+rg -Fq 'codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)===!0' "$temporary/app.asar" || {
+  printf 'runtime_hardening: Linux lifecycle features are not explicit opt-in\n' >&2
+  exit 1
+}
+! rg -Fq 'P.globalState.get(e)!==!1' "$temporary/app.asar" || {
+  printf 'runtime_hardening: default-on Linux lifecycle setting remains\n' >&2
   exit 1
 }
 rg -Fq 'function ext(e){return e===`linux`||e===`windows`}' "$temporary/app.asar" || {
@@ -52,31 +61,31 @@ if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/app.asar" >/dev/n
   exit 1
 fi
 
-printf '%s%s%s%s%s%s%s' "$anchor" "$anchor" "$predicate" "$availability" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/ambiguous.asar"
+printf '%s%s%s%s%s%s%s%s' "$setting_default" "$anchor" "$anchor" "$predicate" "$availability" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/ambiguous.asar"
 if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/ambiguous.asar" >/dev/null 2>&1; then
   printf 'runtime_hardening: patcher accepted an ambiguous input\n' >&2
   exit 1
 fi
 
-printf '%s%s%s%s%s' "$anchor" "$availability" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/missing-computer-use-predicate.asar"
+printf '%s%s%s%s%s%s' "$setting_default" "$anchor" "$availability" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/missing-computer-use-predicate.asar"
 if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/missing-computer-use-predicate.asar" >/dev/null 2>&1; then
   printf 'runtime_hardening: patcher accepted a missing Computer Use predicate\n' >&2
   exit 1
 fi
 
-printf '%s%s%s%s%s' "$anchor" "$predicate" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/missing-computer-use-call.asar"
+printf '%s%s%s%s%s%s' "$setting_default" "$anchor" "$predicate" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/missing-computer-use-call.asar"
 if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/missing-computer-use-call.asar" >/dev/null 2>&1; then
   printf 'runtime_hardening: patcher accepted a missing Computer Use availability call\n' >&2
   exit 1
 fi
 
-printf '%s%s%s%s%s' "$anchor" "$predicate" "$availability" "$tray_wait" "$tray_state" >"$temporary/missing-tray-start.asar"
+printf '%s%s%s%s%s%s' "$setting_default" "$anchor" "$predicate" "$availability" "$tray_wait" "$tray_state" >"$temporary/missing-tray-start.asar"
 if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/missing-tray-start.asar" >/dev/null 2>&1; then
   printf 'runtime_hardening: patcher accepted a missing tray startup branch\n' >&2
   exit 1
 fi
 
-printf '%s%s%s%s%s' "$anchor" "$predicate" "$availability" "$tray_start" "$tray_state" >"$temporary/missing-tray-readiness.asar"
+printf '%s%s%s%s%s%s' "$setting_default" "$anchor" "$predicate" "$availability" "$tray_start" "$tray_state" >"$temporary/missing-tray-readiness.asar"
 if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/missing-tray-readiness.asar" >/dev/null 2>&1; then
   printf 'runtime_hardening: patcher accepted a missing portable tray readiness fallback\n' >&2
   exit 1
@@ -155,6 +164,12 @@ fi
     await_webview_server_ready
 fi
 resolve_browser_use_runtime_env
+detect_warm_start() {
+    linux_setting_enabled "codex-linux-warm-start-enabled" 1
+}
+reconcile_runtime_state() {
+    linux_setting_enabled "codex-linux-warm-start-enabled" 1
+}
 recover_unhealthy_running_app() {
     running_app_is_active || return 0
     webview_origin_is_reachable && return 0
@@ -207,6 +222,14 @@ rg -Fq 'preserving it for Electron second-instance handoff' "$launcher_fixture" 
 }
 rg -Fq 'WARM_START=0' "$launcher_fixture" || {
   printf 'runtime_hardening: missing launch socket does not select second-instance handoff\n' >&2
+  exit 1
+}
+rg -Fq 'linux_setting_enabled "codex-linux-warm-start-enabled" 0' "$launcher_fixture" || {
+  printf 'runtime_hardening: launcher warm start is not explicit opt-in\n' >&2
+  exit 1
+}
+! rg -Fq 'linux_setting_enabled "codex-linux-warm-start-enabled" 1' "$launcher_fixture" || {
+  printf 'runtime_hardening: launcher retained the default-on warm-start policy\n' >&2
   exit 1
 }
 if rg -Fq 'webview_origin_is_reachable && return 0' "$launcher_fixture"; then

@@ -40,6 +40,9 @@ Date: 2026-07-17
 - Added a two-core constrained resource profiler and selected Chromium reduced
   motion after an A/B run reduced settled virtual-Wayland CPU from 88.44% to
   5.05% without a renderer/style patch.
+- The July 18 regression audit changed missing lifecycle settings to explicit
+  opt-in after default-on close-to-tray left the heavy runtime resident, and
+  made reviewed-snapshot validation precede cache publication.
 
 ## Release gates
 

@@ -157,7 +157,7 @@ if rg -a -Fq 'function codexLinuxDiscoveredIdeTargets(' "$stage/resources/app.as
   fail 'disabled editor-discovery integration was unexpectedly packaged'
 fi
 for runtime_anchor in \
-  'codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)!==!1' \
+  'codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)===!0' \
   'codexLinuxIsTrayEnabled=()=>codexLinuxGetSetting(`codex-linux-system-tray-enabled`)' \
   'codexLinuxIsWarmStartEnabled=()=>codexLinuxGetSetting(`codex-linux-warm-start-enabled`)' \
   'if(typeof t.whenReady!=`function`)return!0;' \
@@ -169,8 +169,8 @@ for runtime_anchor in \
   rg -a -Fq "$runtime_anchor" "$stage/resources/app.asar" || \
     fail "required tray/warm-start runtime anchor is missing: $runtime_anchor"
 done
-rg -Fq 'linux_setting_enabled "codex-linux-warm-start-enabled" 1' "$stage/start.sh" || \
-  fail 'warm-start launcher setting is not default-on'
+rg -Fq 'linux_setting_enabled "codex-linux-warm-start-enabled" 0' "$stage/start.sh" || \
+  fail 'warm-start launcher is not explicit opt-in'
 ldd "$stage/chatgpt-work-linux-bin" | rg -q 'not found' && fail 'Electron has unresolved shared libraries'
 bash -n "$stage/start.sh"
 "$stage/resources/node-runtime/bin/node" --version | rg -q '^v22\.' || fail 'managed Node runtime failed validation'

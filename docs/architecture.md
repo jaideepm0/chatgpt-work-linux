@@ -33,7 +33,7 @@ repository hardening pass
   - Chromium sandbox flags retained
   - Wayland-only Ozone default
   - startup blank-window prewarm removed
-  - native tray resource + default-on close-to-tray lifecycle
+  - native tray resource + explicit opt-in close-to-tray lifecycle
   - warm-start socket handoff + single-instance reuse required
   - Chromium reduced-motion preference for bounded idle rendering
   - Linux Computer Use UI and capability gates required
@@ -85,8 +85,8 @@ processes must report `--enable-sandbox`; the build and smoke test reject
 only to the packaged local application plane. Ordinary remote web content does
 not receive native IPC or shell access.
 
-The system tray and warm start are lifecycle features, not additional
-services. The tray uses the packaged `resources/icon-chatgpt.png` expected by
+The system tray and warm start are explicit opt-in lifecycle features, not
+additional services. The tray uses the packaged `resources/icon-chatgpt.png` expected by
 the current reviewed upstream main process and Electron's portable Linux tray
 implementation. The official runtime's private
 `Tray.whenReady()`/`Tray.isReady()` extensions

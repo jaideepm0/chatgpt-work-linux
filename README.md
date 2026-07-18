@@ -23,13 +23,15 @@ download.
   and the application cannot regress to the development URL.
 - Removes the unconditional startup Quick Chat prewarm that created a second
   blank window on Linux; Quick Chat remains available when requested.
-- Enables the native unified-app system tray with the exact production tray
+- Makes the native unified-app system tray available with the exact production
+  tray
   resource expected by the packaged main process. The portable Electron API
   is accepted when the official runtime's private tray-readiness extensions are absent;
   Electron selects StatusNotifierItem or its standard Linux fallback.
-  Close-to-tray remains setting-controlled, and explicit Quit still drains the
-  app normally.
-- Enables default-on warm-start IPC: subsequent launches focus or navigate the
+  Close-to-tray is explicit opt-in so a fresh profile does not retain the
+  resource-heavy process tree after its last window closes; explicit Quit
+  still drains the app normally.
+- Supports opt-in warm-start IPC: subsequent launches focus or navigate the
   existing single instance instead of creating another Electron/app-server
   process tree. This is process reuse, not background prewarming.
 - Requests Chromium's standard reduced-motion mode by default. This removes a

@@ -338,6 +338,28 @@ fi
 [ "$(grep -c '^GET$' "$CURL_LOG" || true)" -eq 0 ] || \
     fail "fetcher downloaded an undersized upstream artifact"
 
+# Normal acquisition must reject changed upstream metadata before replacing a
+# reviewed cache entry. Snapshot refresh is the only unreviewed path.
+PROTECTED_DMG="$TMP_DIR/protected.dmg"
+printf 'known-good-cache-sentinel\n' >"$PROTECTED_DMG"
+cp -- "$PROTECTED_DMG" "$TMP_DIR/protected.before"
+if CHATGPT_WORK_CACHE_DIR="$TMP_DIR/protected-cache" \
+    CHATGPT_WORK_MIN_UPSTREAM_BYTES=1 \
+    CHATGPT_WORK_CURL="$FAKE_CURL" \
+    CHATGPT_WORK_7Z="$FAKE_7Z" \
+    CURL_LOG="$CURL_LOG" \
+    FIXTURE_DMG="$DMG" \
+    FIXTURE_DIR="$FIXTURE_DIR" \
+    "$FETCHER" --output "$PROTECTED_DMG" \
+        --metadata "$TMP_DIR/protected.json" \
+        --headers "$TMP_DIR/protected.headers" >/dev/null 2>&1; then
+    fail "fetcher accepted an artifact outside the reviewed snapshot"
+fi
+cmp -s "$PROTECTED_DMG" "$TMP_DIR/protected.before" || \
+    fail "fetcher replaced the reviewed cache on upstream drift"
+[ "$(grep -c '^GET$' "$CURL_LOG" || true)" -eq 0 ] || \
+    fail "fetcher downloaded an artifact with an unreviewed size"
+
 # Seed a matching partial and state to exercise If-Range resume behavior.
 head -c 9 "$DMG" >"$CACHE_DIR/online.dmg.part"
 cat >"$CACHE_DIR/download.state" <<EOF
@@ -354,7 +376,7 @@ CHATGPT_WORK_7Z="$FAKE_7Z" \
 CURL_LOG="$CURL_LOG" \
 FIXTURE_DMG="$DMG" \
 FIXTURE_DIR="$FIXTURE_DIR" \
-    "$FETCHER" --output "$ONLINE_DMG" --metadata "$ONLINE_METADATA" \
+    "$FETCHER" --allow-unreviewed --output "$ONLINE_DMG" --metadata "$ONLINE_METADATA" \
         --headers "$ONLINE_HEADERS"
 
 cmp -s "$DMG" "$ONLINE_DMG" || fail "resumed download differs from fixture"
@@ -375,9 +397,24 @@ CHATGPT_WORK_7Z="$FAKE_7Z" \
 CURL_LOG="$CURL_LOG" \
 FIXTURE_DMG="$DMG" \
 FIXTURE_DIR="$FIXTURE_DIR" \
-    "$FETCHER" --output "$ONLINE_DMG" --metadata "$ONLINE_METADATA" \
+    "$FETCHER" --allow-unreviewed --output "$ONLINE_DMG" --metadata "$ONLINE_METADATA" \
         --headers "$ONLINE_HEADERS"
 [ "$(grep -c '^GET$' "$CURL_LOG")" -eq 1 ] || fail "ETag cache triggered a second download"
+
+# The same cache must pass the production reviewed-snapshot path when its
+# exact inspection metadata is the checked-in contract.
+CHATGPT_WORK_CACHE_DIR="$CACHE_DIR" \
+CHATGPT_WORK_UPSTREAM_SNAPSHOT="$SNAPSHOT_ONE" \
+CHATGPT_WORK_MIN_UPSTREAM_BYTES=1 \
+CHATGPT_WORK_CURL="$FAKE_CURL" \
+CHATGPT_WORK_7Z="$FAKE_7Z" \
+CURL_LOG="$CURL_LOG" \
+FIXTURE_DMG="$DMG" \
+FIXTURE_DIR="$FIXTURE_DIR" \
+    "$FETCHER" --output "$ONLINE_DMG" --metadata "$ONLINE_METADATA" \
+        --headers "$ONLINE_HEADERS"
+[ "$(grep -c '^GET$' "$CURL_LOG")" -eq 1 ] || \
+    fail "reviewed ETag cache triggered another download"
 
 FAIL_CURL="$TMP_DIR/fail-curl"
 cat >"$FAIL_CURL" <<'SH'
@@ -391,7 +428,7 @@ CHATGPT_WORK_MIN_UPSTREAM_BYTES=1 \
 CHATGPT_WORK_CURL="$FAIL_CURL" \
 CHATGPT_WORK_7Z="$FAKE_7Z" \
 FIXTURE_DIR="$FIXTURE_DIR" \
-    "$FETCHER" --offline --output "$DMG" \
+    "$FETCHER" --allow-unreviewed --offline --output "$DMG" \
         --metadata "$TMP_DIR/offline.json" --headers "$HEADERS"
 
 if CHATGPT_WORK_CACHE_DIR="$TMP_DIR/rejected-cache" \

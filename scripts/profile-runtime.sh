@@ -126,14 +126,17 @@ memory_kib() {
   printf '%s %s %s\n' "$pss" "$rss" "$(wc -w <<<"$pids")"
 }
 
-cpu_ticks() {
-  local root=$1 pids pid total=0
+cpu_snapshot() {
+  local root=$1 pids pid stat start_time ticks
   pids=$(tree_pids "$root")
   for pid in $pids; do
     [[ -r /proc/$pid/stat ]] || continue
-    total=$((total + $(awk '{print $14+$15}' "/proc/$pid/stat" 2>/dev/null || printf 0)))
+    stat=$(<"/proc/$pid/stat") || continue
+    start_time=$(awk '{print $22}' <<<"$stat")
+    ticks=$(awk '{print $14+$15}' <<<"$stat")
+    [[ $start_time =~ ^[0-9]+$ && $ticks =~ ^[0-9]+$ ]] || continue
+    printf '%s:%s %s\n' "$pid" "$start_time" "$ticks"
   done
-  printf '%s\n' "$total"
 }
 
 profile_related_pids() {
@@ -259,18 +262,15 @@ ready_ns=$(date +%s%N)
 read -r warm_ready_pss _ _ < <(memory_kib "$electron_pid")
 (( warm_ready_pss > peak_pss )) && peak_pss=$warm_ready_pss
 
-# Measure the actual warm-start path while this second process tree remains
-# active. The handoff must reuse the same Electron main process and avoid a
-# second renderer/app-server tree.
+# Measure process reuse while this second process tree remains active. An
+# explicitly enabled warm-start socket takes the direct IPC path; fresh
+# profiles use Electron's native second-instance handoff. Neither may leave a
+# second renderer/app-server tree behind.
 launch_socket="$temporary/runtime/chatgpt-work-linux/launch-action.sock"
-for _ in {1..40}; do
+for _ in {1..10}; do
   [[ -S $launch_socket ]] && break
   sleep 0.1
 done
-[[ -S $launch_socket ]] || {
-  printf 'profile-runtime: warm-start launch-action socket was not created\n' >&2
-  exit 1
-}
 warm_handoff_start_ns=$(date +%s%N)
 timeout 10 env -u DISPLAY \
   CODEX_OZONE_PLATFORM=wayland \
@@ -287,10 +287,19 @@ warm_handoff_end_ns=$(date +%s%N)
   printf 'profile-runtime: warm handoff replaced the active Electron process\n' >&2
   exit 1
 }
-rg -q 'Sent launch args over warm-start IPC' "$log_file" || {
-  printf 'profile-runtime: warm handoff did not use IPC\n' >&2
-  exit 1
-}
+if [[ -S $launch_socket ]]; then
+  handoff_mode=warm-start-ipc
+  rg -q 'Sent launch args over warm-start IPC' "$log_file" || {
+    printf 'profile-runtime: enabled warm handoff did not use IPC\n' >&2
+    exit 1
+  }
+else
+  handoff_mode=electron-second-instance
+  rg -q 'using Electron second-instance handoff' "$log_file" || {
+    printf 'profile-runtime: default process reuse did not use Electron handoff\n' >&2
+    exit 1
+  }
+fi
 
 # Allow authentication, catalog sync, and first-render work to quiesce before
 # measuring idle CPU and settled memory.
@@ -303,7 +312,10 @@ done
 read -r settled_pss settled_rss process_count < <(memory_kib "$electron_pid")
 (( settled_pss > peak_pss )) && peak_pss=$settled_pss
 
-ticks_before=$(cpu_ticks "$electron_pid")
+declare -A cpu_ticks_before=()
+while read -r identity ticks; do
+  [[ -n $identity ]] && cpu_ticks_before[$identity]=$ticks
+done < <(cpu_snapshot "$electron_pid")
 declare -A process_ticks_before=()
 if [[ ${CHATGPT_WORK_PROFILE_PROCESS_DETAILS:-0} == 1 ]]; then
   for pid in $(tree_pids "$electron_pid"); do
@@ -313,17 +325,28 @@ if [[ ${CHATGPT_WORK_PROFILE_PROCESS_DETAILS:-0} == 1 ]]; then
 fi
 cpu_start_ns=$(date +%s%N)
 sleep 4
-ticks_after=$(cpu_ticks "$electron_pid")
+ticks_before=0
+ticks_after=0
+while read -r identity ticks; do
+  [[ -n $identity ]] || continue
+  before=${cpu_ticks_before[$identity]:-$ticks}
+  # Only compare the same PID incarnation. Processes which start during the
+  # sample contribute from their first observation; exited processes cannot
+  # make the aggregate negative.
+  (( ticks >= before )) || before=$ticks
+  ticks_before=$((ticks_before + before))
+  ticks_after=$((ticks_after + ticks))
+done < <(cpu_snapshot "$electron_pid")
 cpu_end_ns=$(date +%s%N)
 clock_ticks=$(getconf CLK_TCK)
 
 python3 - "$cold_start_ns" "$cold_ready_ns" "$cold_peak_pss" \
   "$start_ns" "$ready_ns" "$settled_pss" "$settled_rss" "$peak_pss" \
   "$process_count" "$ticks_before" "$ticks_after" "$cpu_start_ns" "$cpu_end_ns" \
-  "$clock_ticks" "$cpu_set" "$warm_handoff_start_ns" "$warm_handoff_end_ns" <<'PY'
+  "$clock_ticks" "$cpu_set" "$warm_handoff_start_ns" "$warm_handoff_end_ns" "$handoff_mode" <<'PY'
 import sys
 (cold_start, cold_ready, cold_peak, start, ready, pss, rss, peak, processes,
- ticks0, ticks1, cpu0, cpu1, hz, cpus, handoff_start, handoff_end) = sys.argv[1:]
+ ticks0, ticks1, cpu0, cpu1, hz, cpus, handoff_start, handoff_end, handoff_mode) = sys.argv[1:]
 cold_launch = (int(cold_ready) - int(cold_start)) / 1e9
 warm_launch = (int(ready) - int(start)) / 1e9
 warm_handoff = (int(handoff_end) - int(handoff_start)) / 1e9
@@ -332,6 +355,7 @@ cpu = ((int(ticks1) - int(ticks0)) / int(hz)) / wall * 100 if wall else 0
 print(f"cold_launch_to_ready_seconds={cold_launch:.3f}")
 print(f"warm_launch_to_ready_seconds={warm_launch:.3f}")
 print(f"warm_handoff_seconds={warm_handoff:.3f}")
+print(f"handoff_mode={handoff_mode}")
 print(f"cpu_set={cpus}")
 print(f"process_count={processes}")
 print(f"settled_pss_mib={int(pss) / 1024:.1f}")

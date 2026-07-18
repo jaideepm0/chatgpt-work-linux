@@ -71,6 +71,7 @@ fetch_args=(
     --output "$artifact"
     --metadata "$candidate"
     --headers "$headers"
+    --allow-unreviewed
 )
 if [ "$offline" -eq 1 ]; then
     fetch_args+=(--offline)

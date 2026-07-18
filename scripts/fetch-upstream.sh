@@ -13,8 +13,10 @@ METADATA="$CACHE_DIR/upstream-snapshot.json"
 HEADERS_FILE="$CACHE_DIR/response.headers"
 OFFLINE=0
 FORCE=0
+ALLOW_UNREVIEWED=0
 MAX_UPSTREAM_BYTES=$((2 * 1024 * 1024 * 1024))
 MIN_UPSTREAM_BYTES=${CHATGPT_WORK_MIN_UPSTREAM_BYTES:-$((500 * 1024 * 1024))}
+REVIEWED_SNAPSHOT=${CHATGPT_WORK_UPSTREAM_SNAPSHOT:-"$REPO_DIR/docs/upstream-snapshot.json"}
 
 CURL_BIN="${CHATGPT_WORK_CURL:-curl}"
 PYTHON_BIN="${CHATGPT_WORK_PYTHON:-python3}"
@@ -33,6 +35,7 @@ Options:
   --url URL           upstream URL; currently only the official URL is allowed
   --offline           inspect --output without making any network request
   --force             bypass a matching local ETag/hash cache
+  --allow-unreviewed  inspection/refresh only; do not require the reviewed snapshot
   -h, --help          show this help
 
 The proprietary DMG is never executed or added to a package. Complete and
@@ -80,6 +83,10 @@ while [ "$#" -gt 0 ]; do
             FORCE=1
             shift
             ;;
+        --allow-unreviewed)
+            ALLOW_UNREVIEWED=1
+            shift
+            ;;
         -h|--help)
             usage
             exit 0
@@ -107,6 +114,9 @@ esac
 
 command -v "$PYTHON_BIN" >/dev/null 2>&1 || die "Python 3 not found: $PYTHON_BIN"
 [ -f "$INSPECTOR" ] || die "missing inspector: $INSPECTOR"
+if [ "$ALLOW_UNREVIEWED" -eq 0 ]; then
+    [ -f "$REVIEWED_SNAPSHOT" ] || die "reviewed snapshot is missing: $REVIEWED_SNAPSHOT"
+fi
 
 mkdir -p -- "$(dirname -- "$OUTPUT")" "$(dirname -- "$METADATA")" \
     "$(dirname -- "$HEADERS_FILE")" "$CACHE_DIR"
@@ -158,9 +168,34 @@ inspect_to_metadata() {
     fi
 }
 
+candidate_matches_reviewed_snapshot() {
+    [ "$ALLOW_UNREVIEWED" -eq 0 ] || return 0
+    "$PYTHON_BIN" - "$METADATA_PART" "$REVIEWED_SNAPSHOT" "$URL" <<'PY'
+import json
+import sys
+
+candidate_path, reviewed_path, expected_url = sys.argv[1:]
+try:
+    candidate = json.load(open(candidate_path, encoding="utf-8"))
+    reviewed = json.load(open(reviewed_path, encoding="utf-8"))
+    if reviewed["source"]["url"] != expected_url:
+        raise ValueError("reviewed source URL differs from the allowlisted URL")
+    for key in ("size", "sha256", "archive_format"):
+        if candidate["artifact"][key] != reviewed["artifact"][key]:
+            raise ValueError(f"artifact {key} differs from the reviewed snapshot")
+    for key in ("bundle_identifier", "bundle_version", "short_version", "implementation"):
+        if candidate["application"][key] != reviewed["application"][key]:
+            raise ValueError(f"application {key} differs from the reviewed snapshot")
+except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
+    print(f"fetch-upstream: unreviewed artifact rejected: {error}", file=sys.stderr)
+    raise SystemExit(1)
+PY
+}
+
 if [ "$OFFLINE" -eq 1 ]; then
     [ -f "$OUTPUT" ] || die "offline DMG does not exist: $OUTPUT"
     inspect_to_metadata "$OUTPUT" "$HEADERS_FILE"
+    candidate_matches_reviewed_snapshot || die "offline artifact is not the reviewed snapshot"
     mv -f -- "$METADATA_PART" "$METADATA"
     printf 'Inspected offline artifact: %s\nMetadata: %s\n' "$OUTPUT" "$METADATA" >&2
     exit 0
@@ -225,6 +260,19 @@ esac
 [ -n "$ETAG" ] || die "upstream response did not provide an ETag"
 [ -n "$LAST_MODIFIED" ] || die "upstream response did not provide Last-Modified"
 
+# A normal build never downloads a newly published, unreviewed artifact over a
+# known-good cache entry. Explicit snapshot refresh uses --allow-unreviewed and
+# writes a candidate for human review instead.
+if [ "$ALLOW_UNREVIEWED" -eq 0 ]; then
+    reviewed_size=$("$PYTHON_BIN" - "$REVIEWED_SNAPSHOT" <<'PY'
+import json, sys
+print(json.load(open(sys.argv[1], encoding="utf-8"))["artifact"]["size"])
+PY
+    ) || die "could not read reviewed artifact size"
+    [ "$CONTENT_LENGTH" -eq "$reviewed_size" ] || \
+        die "upstream size $CONTENT_LENGTH differs from reviewed snapshot $reviewed_size; run an explicit snapshot refresh"
+fi
+
 cache_matches_remote() {
     [ -f "$OUTPUT" ] && [ -f "$METADATA" ] || return 1
     "$PYTHON_BIN" - "$OUTPUT" "$METADATA" "$URL" "$ETAG" "$LAST_MODIFIED" "$CONTENT_LENGTH" <<'PY'
@@ -260,6 +308,8 @@ PY
 
 if [ "$FORCE" -eq 0 ] && cache_matches_remote; then
     inspect_to_metadata "$OUTPUT" "$HEAD_PART"
+    candidate_matches_reviewed_snapshot || \
+        die "cached artifact is not the reviewed snapshot"
     mv -f -- "$HEAD_PART" "$HEADERS_FILE"
     mv -f -- "$METADATA_PART" "$METADATA"
     rm -f -- "$DOWNLOAD_PART" "$STATE_FILE"
@@ -326,6 +376,10 @@ fi
 if ! inspect_to_metadata "$DOWNLOAD_PART" "$HEAD_PART"; then
     rm -f -- "$DOWNLOAD_PART"
     die "download failed artifact inspection and was discarded"
+fi
+if ! candidate_matches_reviewed_snapshot; then
+    rm -f -- "$DOWNLOAD_PART"
+    die "downloaded artifact is not the reviewed snapshot; active cache was preserved"
 fi
 
 mv -f -- "$DOWNLOAD_PART" "$OUTPUT"

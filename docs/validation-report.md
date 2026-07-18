@@ -151,3 +151,27 @@ external links, uploads/downloads, microphone and screen permissions, Quick
 Chat, Sites, scheduled work, computer-use confirmation/cancellation, restart,
 and rollback. These service- and permission-dependent flows cannot be fully
 proved by a clean-profile process smoke test.
+
+## 2026-07-18 resource-regression audit
+
+The two July 17 commits were compared with the July 13 baseline. The worktree
+was clean before this audit. Historical evidence shows that the unified
+Electron runtime was already heavy (about 1.3 GiB aggregate RSS), while the
+new default-on tray lifecycle made that cost persist after the last window was
+closed. A fresh-profile comparison measured 803-830 MiB settled PSS, showing
+that the 888-thread canonical history increases the signed-in result but is
+not the sole cause of the footprint.
+
+The source now makes tray, warm-start socket, and prompt-window lifecycle
+features explicit opt-in while retaining canonical Codex history and native
+Electron second-instance reuse. The profiler's process-churn accounting was
+also corrected so an exiting child cannot produce negative aggregate CPU.
+
+During rebuild, the mutable official URL published version `26.715.31251`
+(618,656,313 bytes) in place of the reviewed `26.715.21425` snapshot. The old
+fetcher inspected and published that unreviewed artifact into the private
+cache before the build rejected it. Acquisition now validates the checked-in
+size/hash/version before cache publication; only the explicit snapshot-refresh
+transaction may inspect an unreviewed candidate. Static, unit, upstream-tool,
+and runtime-hardening checks pass. A rebuilt runtime profile remains pending
+until the new upstream artifact and adapter drift are explicitly reviewed.

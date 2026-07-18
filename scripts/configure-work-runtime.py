@@ -210,6 +210,17 @@ fi
             "unavailable packaged webview origin",
         ),
     )
+    warm_default = 'linux_setting_enabled "codex-linux-warm-start-enabled" 1'
+    warm_default_count = source.count(warm_default)
+    if warm_default_count != 2:
+        raise SystemExit(
+            "configure-work-runtime: expected two default-on warm-start "
+            f"launcher checks, found {warm_default_count}"
+        )
+    source = source.replace(
+        warm_default,
+        'linux_setting_enabled "codex-linux-warm-start-enabled" 0',
+    )
     source = replace_once(
         source,
         '    exec >>"$LOG_FILE" 2>&1\n',

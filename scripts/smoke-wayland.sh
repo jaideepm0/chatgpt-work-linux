@@ -22,6 +22,12 @@ trap cleanup EXIT HUP INT TERM
 mkdir -m 0700 -- "$temporary/runtime"
 ln -s -- "$session_runtime/$WAYLAND_DISPLAY" "$temporary/runtime/$WAYLAND_DISPLAY"
 mkdir -p -- "$temporary/config" "$temporary/data" "$temporary/cache" "$temporary/state"
+mkdir -p -- "$temporary/config/chatgpt-work-linux"
+# Exercise the optional lifecycle integrations explicitly. Fresh profiles keep
+# both disabled so closing the last window releases the heavy runtime tree.
+printf '%s\n' \
+  '{"codex-linux-system-tray-enabled":true,"codex-linux-warm-start-enabled":true}' \
+  >"$temporary/config/chatgpt-work-linux/settings.json"
 
 doctor=$(XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY="$WAYLAND_DISPLAY" "$launcher" doctor --json)
 python3 - "$doctor" <<'PY'

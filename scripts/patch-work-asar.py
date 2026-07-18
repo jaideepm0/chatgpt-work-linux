@@ -29,9 +29,21 @@ def main() -> None:
     # avoids changing archive offsets while retaining Quick Chat on demand.
     patched = replace_same_size(payload, prewarm_anchor, b"void 0", "startup prewarm call")
 
+    # Lifecycle features must be opt-in.  The adapter's original `!== false`
+    # default silently enables every missing Linux setting, which makes a
+    # freshly created profile retain the full Electron/app-server tree after
+    # the last window closes.  `=== true` is the same byte length, preserves
+    # explicit user choices, and keeps the ASAR layout stable.
+    patched = replace_same_size(
+        patched,
+        b"codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)!==!1",
+        b"codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)===!0",
+        "Linux lifecycle setting default",
+    )
+
     # The current upstream creates a tray on Linux unconditionally, leaving the
     # reviewed Linux setting disconnected. Route the existing startup branch
-    # through the adapter's default-on setting helper. The replacement remains
+    # through the adapter's setting helper. The replacement remains
     # exactly the same size so ASAR offsets are unchanged.
     tray_start_anchor = b"(A||process.platform===`linux`)&&Ce()"
     tray_start_replacement = b"(A||codexLinuxIsTrayEnabled())&&Ce() "
