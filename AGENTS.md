@@ -59,10 +59,14 @@ entry visibly labeled as unofficial and not endorsed by OpenAI.
 - Performance and resource consumption are release gates. Avoid duplicate
   renderer payloads, repeated full builds, unbounded adapter/Cargo caches,
   unnecessary background processes, unconditional prewarming, and persistent
-  polling. Prefer documented runtime preferences over renderer/style patches
-  when they provide equivalent savings. Measure startup, settled CPU, process
-  count, and proportional memory under a two-core CPU set and
-  constrained-memory lane before handoff.
+  polling. Reuse content-verified versioned plugin caches instead of rewriting
+  them on every launch. Prefer documented runtime preferences over renderer/style
+  patches when they provide equivalent savings. Distinguish compatibility-layer
+  overhead from the current measured full-product cost; a 768 MiB OOM is a
+  failed release gate, not permission to weaken security or silently remove
+  product capabilities. Measure startup, settled CPU, process count, and
+  proportional memory under a two-core CPU set and constrained-memory lane
+  before handoff.
 - There is no persistent polling daemon or unattended runtime code replacement.
   Upstream checks are metadata-only and rate-limited; refresh, adapter update,
   build, validation, and installation are explicit transactions. Install
@@ -119,6 +123,7 @@ make build
 make doctor
 make smoke-wayland
 make profile-runtime
+make profile-runtime-constrained
 make install-user
 chatgpt-work-linux doctor --json
 chatgpt-work-linux computer-use-doctor

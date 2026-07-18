@@ -223,6 +223,116 @@ fi
     )
     source = replace_once(
         source,
+        "sync_extra_bundled_plugin_cache() {\n",
+        '''extra_plugin_cache_requires_rebuild() {
+    local directory="$1"
+    local unsafe=""
+    [ -d "$directory" ] && [ ! -L "$directory" ] || return 0
+    if ! unsafe="$(find "$directory" -xdev \\
+        \\( -type l -o -perm /222 \\) -print -quit 2>/dev/null)"; then
+        return 0
+    fi
+    [ -n "$unsafe" ]
+}
+
+sync_extra_bundled_plugin_cache() {
+''',
+        "extra bundled plugin read-only verifier",
+    )
+    source = replace_once(
+        source,
+        '''        cache_parent="$(dirname "$cache_plugin")"
+        tmp_plugin="$cache_parent/.$plugin_name-$version.tmp.$$"
+''',
+        '''        cache_parent="$(dirname "$cache_plugin")"
+        local source_digest cache_digest
+
+        source_digest="$(cat "$source_plugin/.chatgpt-work-source-integrity" 2>/dev/null || true)"
+        cache_digest=""
+        [ -z "$source_digest" ] || \\
+            cache_digest="$(cat "$cache_plugin/.chatgpt-work-source-integrity" 2>/dev/null || true)"
+
+        # Versioned plugin directories are published by an atomic rename. Reuse
+        # only a complete cache whose deterministic tree digest still matches
+        # the immutable bundled source. An incomplete, modified, or unsafe tree
+        # is rebuilt below.
+        if [ -d "$cache_plugin" ] && [ ! -L "$cache_plugin" ] && \\
+           [ -f "$cache_plugin/.codex-plugin/plugin.json" ] && \\
+           cmp -s "$plugin_json" "$cache_plugin/.codex-plugin/plugin.json" && \\
+           [ -n "$source_digest" ] && [ "$cache_digest" = "$source_digest" ] && \\
+           [ -f "$cache_plugin/.chatgpt-work-source-integrity" ] && \\
+           [ "$(cat "$cache_plugin/.chatgpt-work-source-integrity" 2>/dev/null)" = "$source_digest" ] && \\
+           ! path_has_unsafe_write \\
+               "$SCRIPT_DIR" "$SCRIPT_DIR/resources" \\
+               "$SCRIPT_DIR/resources/plugins" \\
+               "$SCRIPT_DIR/resources/plugins/openai-bundled" \\
+               "$SCRIPT_DIR/resources/plugins/openai-bundled/plugins" "$source_plugin" && \\
+           ! tree_has_unsafe_write "$source_plugin" && \\
+           ! path_has_unsafe_write \\
+               "$codex_home" "$codex_home/plugins" "$codex_home/plugins/cache" \\
+               "$codex_home/plugins/cache/openai-bundled" "$cache_root" && \\
+           ! tree_has_unsafe_write "$cache_plugin" && \\
+           ! extra_plugin_cache_requires_rebuild "$cache_plugin"; then
+            marketplace_root="$codex_home/.tmp/bundled-marketplaces/openai-bundled"
+            marketplace_plugins_dir="$marketplace_root/.agents/plugins"
+            marketplace_plugin_link="$marketplace_root/plugins/$plugin_dir_name"
+            if ! replace_symlink "$version" "$cache_root/latest" || \\
+               ! mkdir -p "$marketplace_plugins_dir" "$marketplace_root/plugins" || \\
+               ! replace_symlink "$cache_root/latest" "$marketplace_plugin_link"; then
+                echo "Extra bundled plugin marketplace link repair failed for $plugin_name; preserving the valid cache."
+            fi
+            continue
+        fi
+
+        tmp_plugin="$cache_parent/.$plugin_name-$version.tmp.$$"
+''',
+        "extra bundled plugin cache reuse",
+    )
+    source = replace_once(
+        source,
+        '''            if ! find "$tmp_plugin" -type f -name '*:com.apple.*' -delete; then
+                remove_tree_if_exists "$tmp_plugin" || true
+                echo "Extra bundled plugin cache cleanup failed for $plugin_name; continuing with existing cache."
+                continue
+            fi
+            if [ -e "$cache_plugin" ] || [ -L "$cache_plugin" ]; then
+''',
+        '''            if ! find "$tmp_plugin" -type f -name '*:com.apple.*' -delete; then
+                remove_tree_if_exists "$tmp_plugin" || true
+                echo "Extra bundled plugin cache cleanup failed for $plugin_name; continuing with existing cache."
+                continue
+            fi
+            cache_digest="$(cat "$tmp_plugin/.chatgpt-work-source-integrity" 2>/dev/null || true)"
+            if [ -z "$source_digest" ] || [ "$cache_digest" != "$source_digest" ] || \\
+               ! printf '%s\\n' "$source_digest" >"$tmp_plugin/.chatgpt-work-source-integrity"; then
+                remove_tree_if_exists "$tmp_plugin" || true
+                echo "Extra bundled plugin cache integrity failed for $plugin_name; continuing with existing cache."
+                continue
+            fi
+            find "$tmp_plugin" -type d -exec chmod a-w {} +
+            find "$tmp_plugin" -type f -exec chmod a-w {} +
+            if [ -e "$cache_plugin" ] || [ -L "$cache_plugin" ]; then
+''',
+        "extra bundled plugin cache integrity publication",
+    )
+    source = replace_once(
+        source,
+        '''    else
+        run_cli_preflight_background
+        log_phase "cli_preflight_backgrounded"
+    fi
+''',
+        '''    else
+        # Normal startup performs no registry lookup or unattended CLI update.
+        # Explicit update transactions own upgrades; proven repair remains the
+        # synchronous branch above.
+        log_phase "cli_preflight_deferred_to_explicit_update"
+    fi
+''',
+        "background CLI update removal",
+    )
+    source = replace_once(
+        source,
         '    exec >>"$LOG_FILE" 2>&1\n',
         '    if [ -f "$LOG_FILE" ] && [ "$(stat -c %s "$LOG_FILE" 2>/dev/null || printf 0)" -gt 1048576 ]; then\n'
         '        tail -c 262144 "$LOG_FILE" >"$LOG_FILE.trim" && mv -f "$LOG_FILE.trim" "$LOG_FILE"\n'

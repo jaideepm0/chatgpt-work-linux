@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := build
 
-.PHONY: build check check-update clean doctor ensure-build install-user migrate-codex-history profile-runtime refresh-upstream run sbom smoke-wayland test uninstall-user update-user
+.PHONY: build check check-update clean doctor ensure-build install-user migrate-codex-history profile-runtime profile-runtime-constrained refresh-upstream run sbom smoke-wayland test uninstall-user update-user
 
 build:
 	bash scripts/fetch-upstream.sh
@@ -28,6 +28,13 @@ smoke-wayland: ensure-build
 
 profile-runtime: ensure-build
 	bash scripts/profile-runtime.sh ./.work/chatgpt-work-app/start.sh
+
+profile-runtime-constrained: ensure-build
+	CHATGPT_WORK_PROFILE_SEED_CODEX_HOME=/nonexistent \
+		CHATGPT_WORK_PROFILE_SEED_STATE=/nonexistent \
+		CHATGPT_WORK_PROFILE_SEED_CONFIG=/nonexistent \
+		CHATGPT_WORK_PROFILE_MEMORY_HIGH_MIB=704 CHATGPT_WORK_PROFILE_MEMORY_MAX_MIB=768 \
+		bash scripts/profile-runtime.sh ./.work/chatgpt-work-app/start.sh
 
 test:
 	env PATH=/usr/bin:/bin cargo test --locked

@@ -8,6 +8,16 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
+if rg -Fq 'rm -rf -- "$stage/resources/node-runtime/lib/node_modules"' \
+    "$repo_root/scripts/build-work-app.sh"; then
+  printf 'runtime_hardening: build removes the managed CLI install/repair toolchain\n' >&2
+  exit 1
+fi
+rg -Fq '"$stage/resources/node-runtime/bin/npm" --version' "$repo_root/scripts/build-work-app.sh" || {
+  printf 'runtime_hardening: managed npm toolchain lacks a build self-check\n' >&2
+  exit 1
+}
+
 anchor='process.platform===`linux`&&codexLinuxPrewarmHotkeyWindow()'
 predicate='function ext(e){return e===`macOS`||e===`windows`}'
 availability='featureName:`computer_use`;g=rxt({areRequiredFeaturesEnabled:h,enabled:i,isAnyFeatureLoading:m,isComputerUseGateEnabled:s,isHostCompatiblePlatform:ext(o),isPlatformLoading:a,windowType:`electron`})'
@@ -182,6 +192,23 @@ recover_unhealthy_running_app() {
 send_warm_start_launch_action() {
     return 0
 }
+sync_extra_bundled_plugin_cache() {
+    local cache_parent tmp_plugin
+        cache_parent="$(dirname "$cache_plugin")"
+        tmp_plugin="$cache_parent/.$plugin_name-$version.tmp.$$"
+            if ! find "$tmp_plugin" -type f -name '*:com.apple.*' -delete; then
+                remove_tree_if_exists "$tmp_plugin" || true
+                echo "Extra bundled plugin cache cleanup failed for $plugin_name; continuing with existing cache."
+                continue
+            fi
+            if [ -e "$cache_plugin" ] || [ -L "$cache_plugin" ]; then
+                return 0
+            fi
+}
+    else
+        run_cli_preflight_background
+        log_phase "cli_preflight_backgrounded"
+    fi
     exec >>"$LOG_FILE" 2>&1
 "$SCRIPT_DIR/electron"
 SH
@@ -230,6 +257,44 @@ rg -Fq 'linux_setting_enabled "codex-linux-warm-start-enabled" 0' "$launcher_fix
 }
 ! rg -Fq 'linux_setting_enabled "codex-linux-warm-start-enabled" 1' "$launcher_fixture" || {
   printf 'runtime_hardening: launcher retained the default-on warm-start policy\n' >&2
+  exit 1
+}
+rg -Fq 'cat "$source_plugin/.chatgpt-work-source-integrity"' "$launcher_fixture" || {
+  printf 'runtime_hardening: extra plugin cache reuse lacks an exact-build marker\n' >&2
+  exit 1
+}
+rg -Fq 'extra_plugin_cache_requires_rebuild "$cache_plugin"' "$launcher_fixture" || {
+  printf 'runtime_hardening: extra plugin cache reuse accepts a writable tree\n' >&2
+  exit 1
+}
+rg -Fq 'find "$tmp_plugin" -type f -exec chmod a-w' "$launcher_fixture" || {
+  printf 'runtime_hardening: extra plugin cache publication is not read-only\n' >&2
+  exit 1
+}
+cache_helper="$temporary/plugin-cache-helper.sh"
+sed -n '/^extra_plugin_cache_requires_rebuild() {$/,/^}$/p' \
+  "$launcher_fixture" >"$cache_helper"
+# shellcheck source=/dev/null
+source "$cache_helper"
+mkdir "$temporary/read-only-plugin"
+printf 'payload\n' >"$temporary/read-only-plugin/tool"
+chmod a-w "$temporary/read-only-plugin" "$temporary/read-only-plugin/tool"
+if extra_plugin_cache_requires_rebuild "$temporary/read-only-plugin"; then
+  printf 'runtime_hardening: valid read-only plugin cache is rejected\n' >&2
+  exit 1
+fi
+chmod u+w "$temporary/read-only-plugin/tool"
+extra_plugin_cache_requires_rebuild "$temporary/read-only-plugin" || {
+  printf 'runtime_hardening: writable plugin cache is accepted\n' >&2
+  exit 1
+}
+chmod u+w "$temporary/read-only-plugin"
+rg -Fq 'cli_preflight_deferred_to_explicit_update' "$launcher_fixture" || {
+  printf 'runtime_hardening: ordinary startup retains an unattended CLI update\n' >&2
+  exit 1
+}
+! rg -Fq 'run_cli_preflight_background' "$launcher_fixture" || {
+  printf 'runtime_hardening: background CLI updater remains on the startup path\n' >&2
   exit 1
 }
 if rg -Fq 'webview_origin_is_reachable && return 0' "$launcher_fixture"; then

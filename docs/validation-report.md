@@ -175,3 +175,19 @@ size/hash/version before cache publication; only the explicit snapshot-refresh
 transaction may inspect an unreviewed candidate. Static, unit, upstream-tool,
 and runtime-hardening checks pass. A rebuilt runtime profile remains pending
 until the new upstream artifact and adapter drift are explicitly reviewed.
+
+The improved per-process profiler measured the still-installed reviewed build
+at 1,151.0 MiB settled PSS, 1,688.2 MiB RSS, nine processes, 2.46% aggregate
+CPU on two permitted cores, and 754.4 MiB generated size after a 20-second
+settle. PSS attribution was 466.0 MiB renderer, 326.1 MiB Electron main,
+197.1 MiB combined Node/Codex app-server, 101.3 MiB GPU, and 60.5 MiB Chromium
+network/zygote infrastructure. This profile validates measurement changes, not
+the unbuilt lifecycle patch.
+
+The automated 768 MiB lane initially exposed an invalid measurement condition:
+Plasma re-scoped the mapped Wayland Electron tree out of the transient limited
+cgroup and into `app-io.github.chatgpt_work_linux-*.scope`. The profiler now
+checks every process's cgroup membership and fails closed on that migration.
+The earlier genuine 768 MiB OOM remains the release result; a new constrained
+profile requires a session/compositor lane that cannot migrate memory charges
+outside the test cgroup.

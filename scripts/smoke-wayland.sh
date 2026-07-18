@@ -179,11 +179,11 @@ for _ in {1..60}; do
   kill -0 "$launcher_pid" 2>/dev/null || break
   sleep 0.25
 done
-[[ $electron_pid =~ ^[1-9][0-9]*$ ]] && kill -0 "$electron_pid" 2>/dev/null || {
+if [[ ! $electron_pid =~ ^[1-9][0-9]*$ ]] || ! kill -0 "$electron_pid" 2>/dev/null; then
   tail -n 100 "$temporary/launcher.out" >&2 || true
   printf 'smoke-wayland: Electron did not become active\n' >&2
   exit 1
-}
+fi
 
 for _ in {1..80}; do
   renderer=$(ps -eo pid=,args= | awk -v parent="$temporary" '
@@ -301,10 +301,10 @@ if ! timeout 10 env -u DISPLAY \
 fi
 warm_end_ns=$(date +%s%N)
 current_pid=$(<"$pid_file")
-[[ $current_pid == "$electron_pid" ]] && kill -0 "$electron_pid" 2>/dev/null || {
+if [[ $current_pid != "$electron_pid" ]] || ! kill -0 "$electron_pid" 2>/dev/null; then
   printf 'smoke-wayland: warm start replaced the active Electron process\n' >&2
   exit 1
-}
+fi
 rg -q 'Sent launch args over warm-start IPC' "$log_file" || {
   tail -n 100 "$log_file" >&2 || true
   printf 'smoke-wayland: launcher did not use warm-start IPC\n' >&2

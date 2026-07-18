@@ -3,6 +3,8 @@ set -euo pipefail
 
 launcher=${1:-"$HOME/.local/bin/chatgpt-work-linux"}
 settle_seconds=${CHATGPT_WORK_PROFILE_SETTLE_SECONDS:-30}
+memory_max_mib=${CHATGPT_WORK_PROFILE_MEMORY_MAX_MIB:-0}
+memory_high_mib=${CHATGPT_WORK_PROFILE_MEMORY_HIGH_MIB:-0}
 [[ $launcher == /* ]] || launcher=$(realpath -- "$launcher")
 [[ -x $launcher ]] || { printf 'profile-runtime: launcher is not executable: %s\n' "$launcher" >&2; exit 2; }
 [[ ${XDG_SESSION_TYPE:-} == wayland && -n ${WAYLAND_DISPLAY:-} ]] || {
@@ -13,11 +15,36 @@ settle_seconds=${CHATGPT_WORK_PROFILE_SETTLE_SECONDS:-30}
   printf 'profile-runtime: settle time must be a positive integer\n' >&2
   exit 2
 }
+[[ $memory_max_mib =~ ^[0-9]+$ && $memory_high_mib =~ ^[0-9]+$ ]] || {
+  printf 'profile-runtime: memory limits must be non-negative integer MiB values\n' >&2
+  exit 2
+}
+if (( memory_max_mib > 0 )); then
+  (( memory_high_mib > 0 && memory_high_mib < memory_max_mib )) || {
+    printf 'profile-runtime: MemoryHigh must be positive and below MemoryMax\n' >&2
+    exit 2
+  }
+  command -v systemd-run >/dev/null 2>&1 || {
+    printf 'profile-runtime: systemd-run is required for the constrained-memory lane\n' >&2
+    exit 2
+  }
+  [[ -r /sys/fs/cgroup/cgroup.controllers ]] || {
+    printf 'profile-runtime: unified cgroup v2 is required for the constrained-memory lane\n' >&2
+    exit 2
+  }
+  systemctl --user show-environment >/dev/null 2>&1 || {
+    printf 'profile-runtime: a running systemd user manager is required for the constrained-memory lane\n' >&2
+    exit 2
+  }
+fi
 
 temporary=$(mktemp -d -t chatgpt-work-profile.XXXXXX)
 session_runtime=${XDG_RUNTIME_DIR:?profile-runtime: XDG_RUNTIME_DIR is required}
 launcher_pid=
 electron_pid=
+profile_launch_sequence=0
+profile_scope_cgroup=
+profile_scope_unit=
 mkdir -m 0700 -- "$temporary/runtime"
 ln -s -- "$session_runtime/$WAYLAND_DISPLAY" "$temporary/runtime/$WAYLAND_DISPLAY"
 mkdir -p -- "$temporary/config" "$temporary/data" "$temporary/cache" "$temporary/state"
@@ -156,21 +183,66 @@ for name in os.listdir("/proc"):
 PY
 }
 
+constrained_tree_is_contained() {
+  local root=$1 pid membership escaped=0
+  (( memory_max_mib > 0 )) || return 0
+  [[ -n $profile_scope_cgroup ]] || {
+    printf 'profile-runtime: constrained scope cgroup was not resolved\n' >&2
+    return 1
+  }
+  for pid in $(tree_pids "$root"); do
+    membership=$(awk -F: '$1 == 0 {print $3}' "/proc/$pid/cgroup" 2>/dev/null || true)
+    case $membership in
+      "$profile_scope_cgroup"|"$profile_scope_cgroup"/*) ;;
+      *)
+        printf 'profile-runtime: pid %s escaped constrained cgroup %s into %s\n' \
+          "$pid" "$profile_scope_cgroup" "${membership:-unknown}" >&2
+        escaped=1
+        ;;
+    esac
+  done
+  (( escaped == 0 ))
+}
+
+profile_tree_is_healthy() {
+  local root=$1 pid command renderer=0 app_server=0
+  kill -0 "$root" 2>/dev/null || return 1
+  for pid in $(tree_pids "$root"); do
+    [[ -r /proc/$pid/cmdline ]] || continue
+    command=$(tr '\0' ' ' <"/proc/$pid/cmdline")
+    [[ $command != *'--type=renderer'* ]] || renderer=1
+    [[ $command != *' app-server '* ]] || app_server=1
+  done
+  (( renderer == 1 && app_server == 1 ))
+}
+
 stop_profile_processes() {
-  local pids=""
+  local pids="" remaining=""
+  local -a pid_list=()
+  if [[ -n $profile_scope_unit ]]; then
+    systemctl --user stop "$profile_scope_unit" >/dev/null 2>&1 || true
+    for _ in {1..30}; do
+      systemctl --user is-active --quiet "$profile_scope_unit" 2>/dev/null || break
+      sleep 0.1
+    done
+    profile_scope_unit=
+    profile_scope_cgroup=
+  fi
   if [[ ${electron_pid:-} =~ ^[1-9][0-9]*$ ]]; then
     pids=$(tree_pids "$electron_pid" 2>/dev/null || true)
   fi
   pids=$(printf '%s\n%s\n%s\n' "$pids" "${launcher_pid:-}" "$(profile_related_pids)" |
     tr ' ' '\n' | awk '/^[1-9][0-9]*$/' | sort -un | tr '\n' ' ')
-  [[ -z $pids ]] || kill $pids 2>/dev/null || true
+  read -r -a pid_list <<<"$pids"
+  [[ ${#pid_list[@]} -eq 0 ]] || kill "${pid_list[@]}" 2>/dev/null || true
   for _ in {1..30}; do
     remaining=$(profile_related_pids | tr '\n' ' ')
     [[ -z $remaining ]] && break
     sleep 0.1
   done
   remaining=$(profile_related_pids | tr '\n' ' ')
-  [[ -z $remaining ]] || kill -KILL $remaining 2>/dev/null || true
+  read -r -a pid_list <<<"$remaining"
+  [[ ${#pid_list[@]} -eq 0 ]] || kill -KILL "${pid_list[@]}" 2>/dev/null || true
   launcher_pid=
   electron_pid=
 }
@@ -182,17 +254,50 @@ cleanup() {
 trap cleanup EXIT HUP INT TERM
 
 launch_profile() {
-  env -u DISPLAY \
-    CODEX_OZONE_PLATFORM=wayland \
-    CHATGPT_WORK_CODEX_HOME="$temporary/data/codex-home" \
-    XDG_SESSION_TYPE=wayland \
-    XDG_RUNTIME_DIR="$temporary/runtime" \
-    XDG_CONFIG_HOME="$temporary/config" \
-    XDG_DATA_HOME="$temporary/data" \
-    XDG_CACHE_HOME="$temporary/cache" \
-    XDG_STATE_HOME="$temporary/state" \
-    taskset -c "$cpu_set" "$launcher" >"$temporary/launcher.out" 2>&1 &
+  local -a launch_env=(
+    env -u DISPLAY
+    CODEX_OZONE_PLATFORM=wayland
+    CHATGPT_WORK_CODEX_HOME="$temporary/data/codex-home"
+    XDG_SESSION_TYPE=wayland
+    XDG_RUNTIME_DIR="$temporary/runtime"
+    XDG_CONFIG_HOME="$temporary/config"
+    XDG_DATA_HOME="$temporary/data"
+    XDG_CACHE_HOME="$temporary/cache"
+    XDG_STATE_HOME="$temporary/state"
+  )
+  local -a runner=("${launch_env[@]}" taskset -c "$cpu_set" "$launcher")
+  profile_launch_sequence=$((profile_launch_sequence + 1))
+  if (( memory_max_mib > 0 )); then
+    profile_scope_unit="app-io.github.chatgpt_work_linux-profile-$$-$profile_launch_sequence.scope"
+    runner=(
+      systemd-run --user --scope --quiet --collect
+      # Use an app-style name, then verify containment: some desktops still
+      # move mapped clients into a separate application scope.
+      --unit="$profile_scope_unit"
+      --property="MemoryHigh=${memory_high_mib}M"
+      --property="MemoryMax=${memory_max_mib}M"
+      --property=MemoryAccounting=yes
+      --property=MemorySwapMax=0
+      --property=CPUQuota=200%
+      "${launch_env[@]}" taskset -c "$cpu_set" "$launcher"
+    )
+  fi
+  "${runner[@]}" >"$temporary/launcher.out" 2>&1 &
   launcher_pid=$!
+  profile_scope_cgroup=
+  if (( memory_max_mib > 0 )); then
+    for _ in {1..40}; do
+      profile_scope_cgroup=$(systemctl --user show "$profile_scope_unit" \
+        --property=ControlGroup --value 2>/dev/null || true)
+      [[ -n $profile_scope_cgroup ]] && break
+      sleep 0.05
+    done
+    [[ -n $profile_scope_cgroup && -w /sys/fs/cgroup$profile_scope_cgroup/memory.oom.group ]] || {
+      printf 'profile-runtime: constrained scope does not expose writable group-OOM control\n' >&2
+      return 1
+    }
+    printf '1\n' >"/sys/fs/cgroup$profile_scope_cgroup/memory.oom.group"
+  fi
 }
 
 start_ns=$(date +%s%N)
@@ -201,9 +306,13 @@ launch_profile
 pid_file="$temporary/state/chatgpt-work-linux/app.pid"
 peak_pss=0
 ready=0
-for _ in {1..180}; do
+for sample_index in {1..180}; do
   electron_pid=$(cat "$pid_file" 2>/dev/null || true)
   if [[ $electron_pid =~ ^[1-9][0-9]*$ ]] && kill -0 "$electron_pid" 2>/dev/null; then
+    if (( sample_index % 4 == 0 )); then
+      read -r current_pss _ _ < <(memory_kib "$electron_pid")
+      (( current_pss > peak_pss )) && peak_pss=$current_pss
+    fi
     log_file="$temporary/cache/chatgpt-work-linux/launcher.log"
     if [[ -f $log_file ]] && rg -q 'window ready-to-show appearance=primary' "$log_file"; then
       ready=1
@@ -220,6 +329,10 @@ if [[ $ready -ne 1 ]]; then
   exit 1
 fi
 ready_ns=$(date +%s%N)
+constrained_tree_is_contained "$electron_pid" || {
+  printf 'profile-runtime: refusing an invalid constrained-memory measurement\n' >&2
+  exit 1
+}
 read -r cold_ready_pss _ _ < <(memory_kib "$electron_pid")
 (( cold_ready_pss > peak_pss )) && peak_pss=$cold_ready_pss
 cold_start_ns=$start_ns
@@ -241,9 +354,13 @@ launch_profile
 peak_pss=0
 ready=0
 electron_pid=
-for _ in {1..180}; do
+for sample_index in {1..180}; do
   electron_pid=$(cat "$pid_file" 2>/dev/null || true)
   if [[ $electron_pid =~ ^[1-9][0-9]*$ ]] && kill -0 "$electron_pid" 2>/dev/null; then
+    if (( sample_index % 4 == 0 )); then
+      read -r current_pss _ _ < <(memory_kib "$electron_pid")
+      (( current_pss > peak_pss )) && peak_pss=$current_pss
+    fi
     if [[ -f $log_file ]] && rg -q 'window ready-to-show appearance=primary' "$log_file"; then
       ready=1
       break
@@ -259,6 +376,10 @@ if [[ $ready -ne 1 ]]; then
   exit 1
 fi
 ready_ns=$(date +%s%N)
+constrained_tree_is_contained "$electron_pid" || {
+  printf 'profile-runtime: refusing an invalid constrained-memory measurement\n' >&2
+  exit 1
+}
 read -r warm_ready_pss _ _ < <(memory_kib "$electron_pid")
 (( warm_ready_pss > peak_pss )) && peak_pss=$warm_ready_pss
 
@@ -283,10 +404,10 @@ timeout 10 env -u DISPLAY \
   XDG_STATE_HOME="$temporary/state" \
   taskset -c "$cpu_set" "$launcher" --new-chat >"$temporary/warm-handoff.out" 2>&1
 warm_handoff_end_ns=$(date +%s%N)
-[[ $(<"$pid_file") == "$electron_pid" ]] && kill -0 "$electron_pid" 2>/dev/null || {
+if [[ $(<"$pid_file") != "$electron_pid" ]] || ! kill -0 "$electron_pid" 2>/dev/null; then
   printf 'profile-runtime: warm handoff replaced the active Electron process\n' >&2
   exit 1
-}
+fi
 if [[ -S $launch_socket ]]; then
   handoff_mode=warm-start-ipc
   rg -q 'Sent launch args over warm-start IPC' "$log_file" || {
@@ -305,12 +426,20 @@ fi
 # measuring idle CPU and settled memory.
 settle_samples=$settle_seconds
 for ((sample = 0; sample < settle_samples; sample++)); do
+  kill -0 "$electron_pid" 2>/dev/null || {
+    printf 'profile-runtime: Electron exited while settling\n' >&2
+    exit 1
+  }
   read -r current_pss _ _ < <(memory_kib "$electron_pid")
   (( current_pss > peak_pss )) && peak_pss=$current_pss
   sleep 1
 done
 read -r settled_pss settled_rss process_count < <(memory_kib "$electron_pid")
 (( settled_pss > peak_pss )) && peak_pss=$settled_pss
+profile_tree_is_healthy "$electron_pid" || {
+  printf 'profile-runtime: required renderer or app-server is not healthy after settling\n' >&2
+  exit 1
+}
 
 declare -A cpu_ticks_before=()
 while read -r identity ticks; do
@@ -324,6 +453,11 @@ if [[ ${CHATGPT_WORK_PROFILE_PROCESS_DETAILS:-0} == 1 ]]; then
   done
 fi
 cpu_start_ns=$(date +%s%N)
+cgroup_cpu_before=-1
+if (( memory_max_mib > 0 )); then
+  cgroup_cpu_before=$(awk '$1 == "usage_usec" {print $2}' \
+    "/sys/fs/cgroup$profile_scope_cgroup/cpu.stat")
+fi
 sleep 4
 ticks_before=0
 ticks_after=0
@@ -338,20 +472,64 @@ while read -r identity ticks; do
   ticks_after=$((ticks_after + ticks))
 done < <(cpu_snapshot "$electron_pid")
 cpu_end_ns=$(date +%s%N)
+constrained_tree_is_contained "$electron_pid" || {
+  printf 'profile-runtime: constrained process tree escaped after settling\n' >&2
+  exit 1
+}
+cgroup_cpu_after=-1
+memory_current_bytes=0
+memory_peak_bytes=0
+swap_current_bytes=0
+swap_peak_bytes=0
+oom_events=0
+oom_kill_events=0
+memory_pressure_avg10=0
+if (( memory_max_mib > 0 )); then
+  cgroup_root="/sys/fs/cgroup$profile_scope_cgroup"
+  cgroup_cpu_after=$(awk '$1 == "usage_usec" {print $2}' "$cgroup_root/cpu.stat")
+  memory_current_bytes=$(<"$cgroup_root/memory.current")
+  memory_peak_bytes=$(<"$cgroup_root/memory.peak")
+  swap_current_bytes=$(<"$cgroup_root/memory.swap.current")
+  [[ ! -r $cgroup_root/memory.swap.peak ]] || swap_peak_bytes=$(<"$cgroup_root/memory.swap.peak")
+  oom_events=$(awk '$1 == "oom" {print $2}' "$cgroup_root/memory.events")
+  oom_kill_events=$(awk '$1 == "oom_kill" {print $2}' "$cgroup_root/memory.events")
+  memory_pressure_avg10=$(awk '$1 == "some" {for (i=2;i<=NF;i++) if ($i ~ /^avg10=/) {sub(/^avg10=/,"",$i); print $i}}' \
+    "$cgroup_root/memory.pressure")
+  (( oom_events == 0 && oom_kill_events == 0 )) || {
+    printf 'profile-runtime: constrained run encountered OOM events (oom=%s oom_kill=%s)\n' \
+      "$oom_events" "$oom_kill_events" >&2
+    exit 1
+  }
+fi
+profile_tree_is_healthy "$electron_pid" || {
+  printf 'profile-runtime: required renderer or app-server exited during CPU sampling\n' >&2
+  exit 1
+}
 clock_ticks=$(getconf CLK_TCK)
+runtime_root=$(dirname -- "$(readlink -f -- "$launcher")")
+generated_size_bytes=$(du -sb -- "$runtime_root" | awk '{print $1}')
 
 python3 - "$cold_start_ns" "$cold_ready_ns" "$cold_peak_pss" \
   "$start_ns" "$ready_ns" "$settled_pss" "$settled_rss" "$peak_pss" \
   "$process_count" "$ticks_before" "$ticks_after" "$cpu_start_ns" "$cpu_end_ns" \
-  "$clock_ticks" "$cpu_set" "$warm_handoff_start_ns" "$warm_handoff_end_ns" "$handoff_mode" <<'PY'
+  "$clock_ticks" "$cpu_set" "$warm_handoff_start_ns" "$warm_handoff_end_ns" "$handoff_mode" \
+  "$generated_size_bytes" "$memory_high_mib" "$memory_max_mib" \
+  "$cgroup_cpu_before" "$cgroup_cpu_after" "$memory_current_bytes" "$memory_peak_bytes" \
+  "$swap_current_bytes" "$swap_peak_bytes" "$oom_events" "$oom_kill_events" \
+  "$memory_pressure_avg10" <<'PY'
 import sys
 (cold_start, cold_ready, cold_peak, start, ready, pss, rss, peak, processes,
- ticks0, ticks1, cpu0, cpu1, hz, cpus, handoff_start, handoff_end, handoff_mode) = sys.argv[1:]
+ ticks0, ticks1, cpu0, cpu1, hz, cpus, handoff_start, handoff_end, handoff_mode,
+ generated_size, memory_high, memory_max, cgroup_cpu0, cgroup_cpu1,
+ memory_current, memory_peak, swap_current, swap_peak, oom, oom_kill,
+ pressure_avg10) = sys.argv[1:]
 cold_launch = (int(cold_ready) - int(cold_start)) / 1e9
 warm_launch = (int(ready) - int(start)) / 1e9
 warm_handoff = (int(handoff_end) - int(handoff_start)) / 1e9
 wall = (int(cpu1) - int(cpu0)) / 1e9
 cpu = ((int(ticks1) - int(ticks0)) / int(hz)) / wall * 100 if wall else 0
+if int(cgroup_cpu0) >= 0 and int(cgroup_cpu1) >= int(cgroup_cpu0) and wall:
+    cpu = ((int(cgroup_cpu1) - int(cgroup_cpu0)) / 1e6) / wall * 100
 print(f"cold_launch_to_ready_seconds={cold_launch:.3f}")
 print(f"warm_launch_to_ready_seconds={warm_launch:.3f}")
 print(f"warm_handoff_seconds={warm_handoff:.3f}")
@@ -360,21 +538,45 @@ print(f"cpu_set={cpus}")
 print(f"process_count={processes}")
 print(f"settled_pss_mib={int(pss) / 1024:.1f}")
 print(f"settled_rss_mib={int(rss) / 1024:.1f}")
-print(f"cold_peak_pss_mib={int(cold_peak) / 1024:.1f}")
-print(f"peak_pss_mib={int(peak) / 1024:.1f}")
+print(f"cold_sampled_peak_pss_mib={int(cold_peak) / 1024:.1f}")
+print(f"sampled_peak_pss_mib={int(peak) / 1024:.1f}")
 print(f"settled_cpu_percent={cpu:.2f}")
+print(f"generated_size_mib={int(generated_size) / 1024 / 1024:.1f}")
+print(f"memory_high_mib={memory_high}")
+print(f"memory_max_mib={memory_max}")
+print(f"cgroup_memory_current_mib={int(memory_current) / 1024 / 1024:.1f}")
+print(f"cgroup_memory_peak_mib={int(memory_peak) / 1024 / 1024:.1f}")
+print(f"cgroup_swap_current_mib={int(swap_current) / 1024 / 1024:.1f}")
+print(f"cgroup_swap_peak_mib={int(swap_peak) / 1024 / 1024:.1f}")
+print(f"cgroup_oom_events={oom}")
+print(f"cgroup_oom_kill_events={oom_kill}")
+print(f"memory_pressure_some_avg10={pressure_avg10}")
+if int(memory_max) > 0:
+    failures = []
+    if cold_launch > 20: failures.append(f"cold launch {cold_launch:.3f}s > 20s")
+    if warm_launch > 15: failures.append(f"warm launch {warm_launch:.3f}s > 15s")
+    if int(processes) > 10: failures.append(f"process count {processes} > 10")
+    if cpu > 10: failures.append(f"settled CPU {cpu:.2f}% > 10%")
+    if int(generated_size) > 800 * 1024 * 1024:
+        failures.append("generated size > 800 MiB")
+    if failures:
+        raise SystemExit("profile-runtime: constrained budgets failed: " + "; ".join(failures))
+    print("constrained_budget_status=passed")
 PY
 
 if [[ ${CHATGPT_WORK_PROFILE_PROCESS_DETAILS:-0} == 1 ]]; then
-  printf 'processes:\n'
+  printf 'processes (CPU is sampled; PSS accounts shared pages proportionally):\n'
   for pid in $(tree_pids "$electron_pid"); do
     [[ -r /proc/$pid/status ]] || continue
     rss=$(awk '/^VmRSS:/ {print $2; exit}' "/proc/$pid/status")
+    pss=$(awk '/^Pss:/ {print $2; exit}' "/proc/$pid/smaps_rollup" 2>/dev/null || printf 0)
     ticks=$(awk '{print $14+$15}' "/proc/$pid/stat" 2>/dev/null || printf 0)
     before=${process_ticks_before[$pid]:-$ticks}
+    (( ticks >= before )) || before=$ticks
     cpu=$(awk -v delta="$((ticks - before))" -v hz="$clock_ticks" \
       -v wall_ns="$((cpu_end_ns - cpu_start_ns))" \
       'BEGIN { if (wall_ns > 0) printf "%.2f", (delta / hz) / (wall_ns / 1000000000) * 100; else print "0.00" }')
-    printf '%8s %7s%% %10s KiB %s\n' "$pid" "$cpu" "${rss:-0}" "$(tr '\0' ' ' <"/proc/$pid/cmdline")"
+    printf '%8s %7s%% %10s KiB PSS %10s KiB RSS %s\n' \
+      "$pid" "$cpu" "${pss:-0}" "${rss:-0}" "$(tr '\0' ' ' <"/proc/$pid/cmdline")"
   done
 fi

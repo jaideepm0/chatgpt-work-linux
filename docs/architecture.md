@@ -1,5 +1,8 @@
 # Production architecture
 
+The resource model and optimization order are specified in
+[`performance-architecture.md`](performance-architecture.md).
+
 ## Decision
 
 The production target is the real application plane from OpenAI's current
@@ -97,8 +100,16 @@ tray backend. A second launch sends one bounded Unix-socket action to the
 already running application and exits; it does not start another renderer or
 app-server. The build keeps Quick Chat prewarming disabled, so enabling warm
 start adds no hidden window or idle renderer. An absent tray or warm-start
-setting means enabled in the reviewed packaged helper and launcher; explicit
-user choices remain authoritative.
+setting means disabled; only an explicit user choice may keep the expensive
+process tree resident after the last window closes.
+
+The full unified renderer is a fidelity boundary, not a claim of lightweight
+resource use. Compatibility-layer work must first remove duplicated payloads,
+eager cache mutation, prewarming, and resident lifecycle features around that
+boundary. It must not manufacture a passing result with unsafe Chromium flags,
+an arbitrary V8 heap cap, or deletion of product capabilities. If the exact
+product plane cannot satisfy the constrained-memory release lane, that is a
+failed release gate that blocks release until the architecture passes it.
 
 Tray portability follows Electron's public Linux contract
 (`https://www.electronjs.org/docs/latest/api/tray/`) and the freedesktop

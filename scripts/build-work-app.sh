@@ -44,7 +44,13 @@ cargo_target_dir=${CHATGPT_WORK_CARGO_TARGET_DIR:-"${XDG_CACHE_HOME:-$HOME/.cach
 parent=$(dirname -- "$output")
 stage="$parent/.stage-$(basename -- "$output")-$$"
 adapter="$parent/.adapter-$adapter_commit-$$"
+previous="$output.previous"
+active_moved=0
 cleanup() {
+  if [[ $active_moved -eq 1 && ! -e $output && -e $previous ]]; then
+    mv -- "$previous" "$output" || \
+      printf 'build-work-app: could not restore the active build from %s\n' "$previous" >&2
+  fi
   rm -rf -- "$stage" "$adapter"
 }
 trap cleanup EXIT HUP INT TERM
@@ -76,6 +82,53 @@ node "$adapter/scripts/ci/validate-patch-report.js" \
 python3 "$repo_root/scripts/validate-work-patch-report.py" \
   "$report_dir/patch-report.json"
 python3 "$repo_root/scripts/patch-work-asar.py" "$stage/resources/app.asar"
+# Materialize exact-build integrity markers during the explicit build
+# transaction. Ordinary launch reads these O(1) markers and never hashes the
+# plugin payload on its critical path.
+python3 - "$stage/resources/plugins/openai-bundled/plugins" <<'PY'
+import hashlib
+import os
+from pathlib import Path
+import stat
+import sys
+
+root = Path(sys.argv[1])
+specialized = {"browser", "chrome", "computer-use", "read-aloud"}
+written = 0
+for plugin in sorted(root.iterdir(), key=lambda path: os.fsencode(path.name)):
+    if plugin.is_symlink():
+        raise SystemExit(f"build-work-app: plugin root must not be a symlink: {plugin}")
+    if not plugin.is_dir() or plugin.name in specialized:
+        continue
+    digest = hashlib.sha256()
+    for path in sorted(plugin.rglob("*"), key=lambda item: os.fsencode(item.relative_to(plugin))):
+        relative = path.relative_to(plugin)
+        if path.name == ".chatgpt-work-source-integrity" or ":com.apple." in path.name:
+            continue
+        metadata = path.lstat()
+        mode = stat.S_IMODE(metadata.st_mode)
+        if path.is_symlink():
+            kind = b"l"
+        elif path.is_dir():
+            kind = b"d"
+        elif path.is_file():
+            kind = b"f"
+        else:
+            raise SystemExit(f"build-work-app: unsupported plugin entry: {path}")
+        digest.update(kind + b"\0" + f"{mode:o}".encode() + b"\0")
+        digest.update(os.fsencode(relative) + b"\0")
+        if kind == b"l":
+            digest.update(os.fsencode(os.readlink(path)) + b"\0")
+        elif kind == b"f":
+            with path.open("rb") as handle:
+                for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+                    digest.update(chunk)
+    marker = plugin / ".chatgpt-work-source-integrity"
+    marker.write_text(digest.hexdigest() + "\n", encoding="ascii")
+    written += 1
+if written == 0:
+    raise SystemExit("build-work-app: no generic plugin integrity markers were written")
+PY
 python3 "$repo_root/scripts/configure-work-runtime.py" \
   "$stage/start.sh" --upstream-version "$version"
 
@@ -173,12 +226,39 @@ rg -Fq 'linux_setting_enabled "codex-linux-warm-start-enabled" 0' "$stage/start.
   fail 'warm-start launcher is not explicit opt-in'
 ldd "$stage/chatgpt-work-linux-bin" | rg -q 'not found' && fail 'Electron has unresolved shared libraries'
 bash -n "$stage/start.sh"
-"$stage/resources/node-runtime/bin/node" --version | rg -q '^v22\.' || fail 'managed Node runtime failed validation'
-
 rm -rf -- "$stage/resources/node-runtime/include" "$stage/resources/node-runtime/share"
-rm -f -- "$stage/resources/node-runtime/bin/corepack" "$stage/resources/node-runtime/bin/npm" \
-  "$stage/resources/node-runtime/bin/npx" "$stage/resources/node-runtime/CHANGELOG.md" \
-  "$stage/resources/node-runtime/README.md"
+rm -f -- "$stage/resources/node-runtime/CHANGELOG.md" "$stage/resources/node-runtime/README.md"
+
+command -v strip >/dev/null 2>&1 || fail 'binutils strip is required to finalize Linux runtime binaries'
+runtime_binaries=(
+  "$stage/resources/node-runtime/bin/node"
+  "$stage/resources/node_repl"
+  "$stage/resources/native/codex-notification-actions-linux"
+  "$computer_use_backend"
+  "$computer_use_plugin/bin/codex-computer-use-cosmic"
+)
+for runtime_binary in "${runtime_binaries[@]}"; do
+  [[ -x $runtime_binary ]] || fail "runtime binary is missing before stripping: $runtime_binary"
+  strip --strip-unneeded -- "$runtime_binary" || fail "could not strip runtime binary: $runtime_binary"
+  file --brief -- "$runtime_binary" | rg -q 'ELF .* (stripped|no section header)' || \
+    fail "runtime binary was not stripped: $runtime_binary"
+  ldd "$runtime_binary" | rg -q 'not found' && \
+    fail "runtime binary has unresolved libraries after stripping: $runtime_binary"
+done
+"$stage/resources/node-runtime/bin/node" --version | rg -q '^v22\.' || fail 'managed Node runtime failed validation'
+env PATH="$stage/resources/node-runtime/bin:/usr/bin:/bin" \
+  "$stage/resources/node-runtime/bin/npm" --version | rg -q '^[0-9]+\.' || \
+  fail 'managed npm CLI install/repair toolchain failed validation'
+"$computer_use_plugin/bin/codex-computer-use-cosmic" --help | rg -q 'codex-computer-use-cosmic' || \
+  fail 'Computer Use compositor helper self-check failed after stripping'
+"$computer_use_backend" --help | rg -q 'codex-computer-use-linux mcp' || \
+  fail 'Computer Use backend self-check failed after stripping'
+node_repl_output=$(timeout 5 "$stage/resources/node_repl" </dev/null 2>&1 || true)
+rg -q 'failed to start stdio MCP server' <<<"$node_repl_output" || \
+  fail 'node_repl bounded startup self-check failed after stripping'
+notification_output=$(timeout 5 "$stage/resources/native/codex-notification-actions-linux" </dev/null 2>&1 || true)
+rg -q 'notification request was not provided' <<<"$notification_output" || \
+  fail 'notification helper bounded startup self-check failed after stripping'
 printf '%s\n' "$adapter_commit" >"$stage/.codex-linux/adapter-commit"
 (
   cd "$stage"
@@ -186,14 +266,15 @@ printf '%s\n' "$adapter_commit" >"$stage/.codex-linux/adapter-commit"
     LC_ALL=C sort -z | xargs -0 sha256sum >.codex-linux/SHA256SUMS
 )
 
-previous="$output.previous"
 rm -rf -- "$previous"
 if [[ -e $output ]]; then
   mv -- "$output" "$previous"
+  active_moved=1
 fi
 if ! mv -- "$stage" "$output"; then
   [[ ! -e $output && -e $previous ]] && mv -- "$previous" "$output"
   fail 'could not publish the completed build'
 fi
+active_moved=0
 trap - EXIT HUP INT TERM
 printf 'Built %s from ChatGPT %s (%s)\n' "$output" "$version" "$(du -sh "$output" | awk '{print $1}')"
