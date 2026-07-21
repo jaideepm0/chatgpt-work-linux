@@ -45,6 +45,7 @@ test:
 	python3 -m py_compile scripts/configure-work-runtime.py scripts/migrate-codex-history.py scripts/patch-compat-adapter.py scripts/patch-computer-use-wayland.py scripts/patch-work-asar.py scripts/validate-work-patch-report.py scripts/inspect-upstream.py scripts/verify-reviewed-build.py
 
 check:
+	shellcheck -x -e SC2016 scripts/*.sh tests/*.sh tests/fixtures/*.sh
 	env PATH=/usr/bin:/bin cargo fmt --all -- --check
 	env PATH=/usr/bin:/bin cargo clippy --workspace --all-targets --locked -- -D warnings
 	$(MAKE) test

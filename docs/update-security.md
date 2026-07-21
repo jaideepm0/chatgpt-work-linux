@@ -48,6 +48,14 @@ The upstream transaction, build, install, uninstall, and rollback paths use
 advisory locks. Direct concurrent installers serialize before verification,
 link switching, and pruning.
 
+The external Linux adapter is an exact Git commit whose deterministic archive
+SHA-256 is source-controlled. Native Node sources are installed only through
+that adapter commit's `package-lock.json` using `npm ci`, and the Linux Electron
+runtime must match the reviewed per-version/per-architecture SHA-256 before
+extraction. A new Electron or native-module version is therefore adapter review
+work; it cannot silently resolve to newer registry or runtime bytes during a
+build.
+
 ## Failure and recovery
 
 - Failed discovery leaves reviewed bytes and metadata unchanged.

@@ -48,6 +48,19 @@ rg -Fq '"$stage/resources/node-runtime/bin/npm" --version' "$repo_root/scripts/b
   printf 'runtime_hardening: managed npm toolchain lacks a build self-check\n' >&2
   exit 1
 }
+rg -Fq 'npm ci --ignore-scripts --no-audit --no-fund' \
+  "$repo_root/scripts/patch-compat-adapter.py" || {
+  printf 'runtime_hardening: native-module build is not bound to the reviewed npm lock\n' >&2
+  exit 1
+}
+for electron_digest in \
+  487a667ca6a734b958c16cff1df74d9d44d2c18a6cccdb4dd51f6301a356c420 \
+  2a375ff973fb7bddc538a4f67b2141947e9d72513a1baa2beabec2a7f65cd0f0; do
+  rg -Fq "$electron_digest" "$repo_root/scripts/patch-compat-adapter.py" || {
+    printf 'runtime_hardening: reviewed Electron archive digest is missing: %s\n' "$electron_digest" >&2
+    exit 1
+  }
+done
 
 anchor='process.platform===`linux`&&codexLinuxPrewarmHotkeyWindow()'
 predicate='function ext(e){return e===`macOS`||e===`windows`}'

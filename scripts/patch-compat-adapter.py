@@ -34,6 +34,7 @@ def main() -> None:
         args.adapter
         / "scripts/patches/core/all-linux/webview/computer-use-ui/patch.js"
     )
+    native_modules = args.adapter / "scripts/lib/native-modules.sh"
 
     old_contract = '''  const availabilityMarkerPattern =
     /([A-Za-z_$][\\w$]*)===`linux`&&\\(([A-Za-z_$][\\w$]*)=\\{\\.\\.\\.\\2,available:!0,isFetching:!1,isLoading:!1\\}\\);/;
@@ -87,7 +88,99 @@ def main() -> None:
         install_flow, old_pattern, new_pattern, "current Computer Use install-flow bundle"
     )
 
-    statuses = {contract_status, card_status, assertion_status, pattern_status}
+    old_npm_install = '''    echo '{"private":true}' > package.json
+
+    info "Installing fresh sources from npm..."
+    npm install \\
+        "electron@$ELECTRON_VERSION" \\
+        "$ELECTRON_REBUILD_PACKAGE" \\
+        "$ELECTRON_REBUILD_NODE_ABI_PACKAGE" \\
+        --save-dev \\
+        --ignore-scripts >&2
+    npm install "better-sqlite3@$bs3_build_ver" "node-pty@$npty_ver" --ignore-scripts >&2
+'''
+    new_npm_install = '''    local native_lock_dir="$REPO_DIR/nix/native-modules"
+    [ -f "$native_lock_dir/package.json" ] || error "Reviewed native-module package manifest is missing"
+    [ -f "$native_lock_dir/package-lock.json" ] || error "Reviewed native-module lock is missing"
+    cp "$native_lock_dir/package.json" "$native_lock_dir/package-lock.json" "$build_dir/"
+    node - "$build_dir/package.json" "$ELECTRON_VERSION" "$bs3_build_ver" "$npty_ver" <<'JS'
+const manifest = require(process.argv[2]);
+const expected = {
+  electron: process.argv[3],
+  "better-sqlite3": process.argv[4],
+  "node-pty": process.argv[5],
+};
+for (const [name, version] of Object.entries(expected)) {
+  if (manifest.dependencies?.[name] !== version) {
+    throw new Error(`Reviewed native-module lock ${name}@${manifest.dependencies?.[name] ?? "missing"} does not match required ${version}`);
+  }
+}
+JS
+
+    info "Installing integrity-locked native module sources from npm cache/registry..."
+    npm ci --ignore-scripts --no-audit --no-fund >&2
+'''
+    npm_status = replace_exact(
+        native_modules,
+        old_npm_install,
+        new_npm_install,
+        "integrity-locked native module install",
+    )
+
+    old_electron_identity = '''    local electron_zip="electron-v${ELECTRON_VERSION}-linux-${electron_arch}.zip"
+    if [ -n "${CODEX_ELECTRON_ZIP_SOURCE:-}" ]; then
+        [ -f "$CODEX_ELECTRON_ZIP_SOURCE" ] || error "CODEX_ELECTRON_ZIP_SOURCE does not exist: $CODEX_ELECTRON_ZIP_SOURCE"
+        info "Using Electron runtime archive: $CODEX_ELECTRON_ZIP_SOURCE"
+        cp "$CODEX_ELECTRON_ZIP_SOURCE" "$WORK_DIR/electron.zip"
+'''
+    new_electron_identity = '''    local electron_zip="electron-v${ELECTRON_VERSION}-linux-${electron_arch}.zip"
+    local expected_electron_sha256
+    case "$ELECTRON_VERSION:$electron_arch" in
+        42.3.0:x64) expected_electron_sha256=487a667ca6a734b958c16cff1df74d9d44d2c18a6cccdb4dd51f6301a356c420 ;;
+        42.3.0:arm64) expected_electron_sha256=2a375ff973fb7bddc538a4f67b2141947e9d72513a1baa2beabec2a7f65cd0f0 ;;
+        *) error "No reviewed Electron archive SHA-256 for $ELECTRON_VERSION/$electron_arch" ;;
+    esac
+    if [ -n "${CODEX_ELECTRON_ZIP_SOURCE:-}" ]; then
+        [ -f "$CODEX_ELECTRON_ZIP_SOURCE" ] || error "CODEX_ELECTRON_ZIP_SOURCE does not exist: $CODEX_ELECTRON_ZIP_SOURCE"
+        if ! printf '%s  %s\\n' "$expected_electron_sha256" "$CODEX_ELECTRON_ZIP_SOURCE" | sha256sum -c - >/dev/null 2>&1; then
+            error "Provided Electron runtime archive failed reviewed SHA-256 verification"
+        fi
+        info "Using verified Electron runtime archive: $CODEX_ELECTRON_ZIP_SOURCE"
+        cp "$CODEX_ELECTRON_ZIP_SOURCE" "$WORK_DIR/electron.zip"
+'''
+    electron_identity_status = replace_exact(
+        native_modules,
+        old_electron_identity,
+        new_electron_identity,
+        "reviewed Electron archive identity",
+    )
+
+    old_electron_copy = '''    cp "$cached_zip" "$WORK_DIR/electron.zip"
+    mkdir -p "$INSTALL_DIR"
+'''
+    new_electron_copy = '''    if ! printf '%s  %s\\n' "$expected_electron_sha256" "$cached_zip" | sha256sum -c - >/dev/null 2>&1; then
+        rm -f "$cached_zip"
+        error "Cached Electron runtime archive failed reviewed SHA-256 verification"
+    fi
+    cp "$cached_zip" "$WORK_DIR/electron.zip"
+    mkdir -p "$INSTALL_DIR"
+'''
+    electron_copy_status = replace_exact(
+        native_modules,
+        old_electron_copy,
+        new_electron_copy,
+        "cached Electron archive verification",
+    )
+
+    statuses = {
+        contract_status,
+        card_status,
+        assertion_status,
+        pattern_status,
+        npm_status,
+        electron_identity_status,
+        electron_copy_status,
+    }
     if len(statuses) != 1:
         raise SystemExit("patch-compat-adapter: adapter was only partially patched")
     print(f"patch-compat-adapter: {statuses.pop()}")
