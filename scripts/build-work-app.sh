@@ -58,6 +58,9 @@ stage="$parent/.stage-$(basename -- "$output")-$$"
 adapter="$parent/.adapter-$adapter_commit-$$"
 previous="$output.previous"
 active_moved=0
+mkdir -p -- "$parent" "$report_dir"
+"$repo_root/scripts/prune-stale-build-work.sh" "$parent" \
+  ".adapter-$adapter_commit-" ".stage-$(basename -- "$output")-"
 cleanup() {
   if [[ $active_moved -eq 1 && ! -e $output && -e $previous ]]; then
     mv -- "$previous" "$output" || \
@@ -66,7 +69,6 @@ cleanup() {
   rm -rf -- "$stage" "$adapter"
 }
 trap cleanup EXIT HUP INT TERM
-mkdir -p -- "$parent" "$report_dir"
 rm -rf -- "$stage" "$adapter"
 cp -a --reflink=auto -- "$adapter_archive" "$adapter"
 rm -f -- "$adapter/.chatgpt-work-adapter-integrity"

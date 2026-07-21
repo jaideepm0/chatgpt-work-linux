@@ -19,6 +19,23 @@ for disabled_packager in build-pacman.sh build-flatpak.sh; do
     exit 1
   }
 done
+
+stale_root="$temporary/stale-build-work"
+mkdir -p -- \
+  "$stale_root/.adapter-fixture-99999998" \
+  "$stale_root/.stage-fixture-99999999" \
+  "$stale_root/.adapter-fixture-$$"
+bash "$repo_root/scripts/prune-stale-build-work.sh" "$stale_root" \
+  '.adapter-fixture-' '.stage-fixture-'
+[[ ! -e $stale_root/.adapter-fixture-99999998 &&
+   ! -e $stale_root/.stage-fixture-99999999 ]] || {
+  printf 'runtime_hardening: abandoned build staging was not pruned\n' >&2
+  exit 1
+}
+[[ -d $stale_root/.adapter-fixture-$$ ]] || {
+  printf 'runtime_hardening: active PID staging was pruned\n' >&2
+  exit 1
+}
 if rg -n 'cargo build|target/release/chatgpt-work-linux' \
   "$repo_root/packaging/arch/PKGBUILD" \
   "$repo_root/packaging/flatpak/io.github.chatgpt_work_linux.yml" >/dev/null; then
