@@ -1,75 +1,19 @@
+# Source-only placeholder. A native package must not ship the proprietary DMG,
+# generated application, or historical Rust/WebKit public-web client.
 pkgname=chatgpt-work-linux
 pkgver=@PKGVER@
 pkgrel=1
-pkgdesc='Community Linux desktop shell for the ChatGPT Work web experience'
-arch=('x86_64')
+pkgdesc='Source tooling for a local unofficial ChatGPT.dmg Linux compatibility build'
+arch=('any')
 license=('MIT')
-depends=('gtk3' 'webkit2gtk-4.1' 'xdg-desktop-portal')
-optdepends=(
-  'xdg-desktop-portal-gtk: GTK portal fallback'
-  'xdg-desktop-portal-kde: KDE global-shortcut and screenshot portals'
-  'google-chrome: Chromium compatibility engine'
-  'chromium: Chromium compatibility engine'
-)
-makedepends=('cargo' 'cargo-cyclonedx' 'jq')
-provides=('chatgpt-work-linux')
-options=('!debug' 'strip')
-source=("$pkgname-$pkgver.tar.gz")
-sha256sums=('@SOURCE_SHA256@')
+source=()
+sha256sums=()
 
-build() {
-  cd "$srcdir/$pkgname-$pkgver"
-  env \
-    CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$srcdir/target}" \
-    RUSTFLAGS="--remap-path-prefix=$srcdir/$pkgname-$pkgver=/usr/src/debug/$pkgname --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/usr/src/cargo --remap-path-prefix=${RUSTUP_HOME:-$HOME/.rustup}=/usr/src/rustup" \
-    cargo build --release --frozen
-  env \
-    CARGO_NET_OFFLINE=true \
-    SOURCE_DATE_EPOCH=0 \
-    cargo cyclonedx --format json --spec-version 1.5 \
-      --override-filename chatgpt-work-linux.cdx --all \
-      --target x86_64-unknown-linux-gnu --quiet
-  bash scripts/normalize-sbom.sh "$PWD/chatgpt-work-linux.cdx.json" "$PWD"
-}
-
-check() {
-  cd "$srcdir/$pkgname-$pkgver"
-  env \
-    CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$srcdir/target}" \
-    RUSTFLAGS="--remap-path-prefix=$srcdir/$pkgname-$pkgver=/usr/src/debug/$pkgname --remap-path-prefix=${CARGO_HOME:-$HOME/.cargo}=/usr/src/cargo --remap-path-prefix=${RUSTUP_HOME:-$HOME/.rustup}=/usr/src/rustup" \
-    cargo test --frozen
+prepare() {
+  error 'Binary packaging is disabled: build the reviewed ChatGPT.dmg locally with make update-user.'
+  return 1
 }
 
 package() {
-  local root="$srcdir/$pkgname-$pkgver"
-  local cargo_target="${CARGO_TARGET_DIR:-$srcdir/target}"
-  install -Dm755 "$cargo_target/release/chatgpt-work-linux" \
-    "$pkgdir/usr/bin/chatgpt-work-linux"
-  install -Dm644 "$root/assets/chatgpt-work-linux.png" \
-    "$pkgdir/usr/share/icons/hicolor/2048x2048/apps/io.github.chatgpt_work_linux.png"
-  install -Dm644 "$root/packaging/linux/io.github.chatgpt_work_linux.desktop" \
-    "$pkgdir/usr/share/applications/io.github.chatgpt_work_linux.desktop"
-  install -Dm644 "$root/packaging/linux/io.github.chatgpt_work_linux.metainfo.xml" \
-    "$pkgdir/usr/share/metainfo/io.github.chatgpt_work_linux.metainfo.xml"
-  install -Dm755 "$root/scripts/inspect-upstream.py" \
-    "$pkgdir/usr/lib/chatgpt-work-linux/inspect-upstream.py"
-  install -Dm644 "$root/config.example.toml" \
-    "$pkgdir/usr/share/doc/chatgpt-work-linux/config.example.toml"
-  install -Dm644 "$root/docs/architecture.md" \
-    "$pkgdir/usr/share/doc/chatgpt-work-linux/architecture.md"
-  install -Dm644 "$root/docs/audit-and-improvement-plan.md" \
-    "$pkgdir/usr/share/doc/chatgpt-work-linux/audit-and-improvement-plan.md"
-  install -Dm644 "$root/docs/work-upstream-assessment.md" \
-    "$pkgdir/usr/share/doc/chatgpt-work-linux/work-upstream-assessment.md"
-  install -Dm644 "$root/docs/upstream-feature-audit.md" \
-    "$pkgdir/usr/share/doc/chatgpt-work-linux/upstream-feature-audit.md"
-  install -Dm644 "$root/assets/ICON-PROVENANCE.md" \
-    "$pkgdir/usr/share/doc/chatgpt-work-linux/icon-provenance.md"
-  install -Dm644 "$root/docs/codex-desktop-linux-review.md" \
-    "$pkgdir/usr/share/doc/chatgpt-work-linux/codex-desktop-linux-review.md"
-  install -Dm644 "$root/docs/upstream-snapshot.json" \
-    "$pkgdir/usr/share/doc/chatgpt-work-linux/upstream-snapshot.json"
-  install -Dm644 "$root/chatgpt-work-linux.cdx.json" \
-    "$pkgdir/usr/share/doc/chatgpt-work-linux/chatgpt-work-linux.cdx.json"
-  install -Dm644 "$root/LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  return 1
 }

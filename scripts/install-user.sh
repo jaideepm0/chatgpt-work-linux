@@ -54,7 +54,7 @@ PY
 )
 [[ $version =~ ^[0-9][0-9A-Za-z._+-]*$ ]] || { printf 'unsafe upstream version: %q\n' "$version" >&2; exit 1; }
 
-digest=$(sha256sum "$build/.codex-linux/SHA256SUMS" | awk '{print substr($1,1,16)}')
+digest=$(sha256sum "$build/.codex-linux/SHA256SUMS" | awk '{print $1}')
 release_id="$version-$digest"
 final="$versions/$release_id"
 stage="$versions/.stage-$release_id-$$"

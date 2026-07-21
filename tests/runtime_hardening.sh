@@ -8,6 +8,24 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
+for disabled_packager in build-pacman.sh build-flatpak.sh; do
+  packaging_output="$temporary/$disabled_packager.out"
+  if bash "$repo_root/scripts/$disabled_packager" >"$packaging_output" 2>&1; then
+    printf 'runtime_hardening: %s still ships a non-DMG product plane\n' "$disabled_packager" >&2
+    exit 1
+  fi
+  rg -Fq 'historical Rust/WebKit public-web client' "$packaging_output" || {
+    printf 'runtime_hardening: %s does not explain the disabled historical target\n' "$disabled_packager" >&2
+    exit 1
+  }
+done
+if rg -n 'cargo build|target/release/chatgpt-work-linux' \
+  "$repo_root/packaging/arch/PKGBUILD" \
+  "$repo_root/packaging/flatpak/io.github.chatgpt_work_linux.yml" >/dev/null; then
+  printf 'runtime_hardening: native packaging can still build the historical web client\n' >&2
+  exit 1
+fi
+
 pressure_output="$temporary/memory-pressure-consent.out"
 if XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY=wayland-test \
   CHATGPT_WORK_PROFILE_MEMORY_HIGH_MIB=704 \

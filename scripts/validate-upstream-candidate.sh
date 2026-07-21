@@ -97,18 +97,23 @@ fi
 adapter_commit=$(<"$output/.codex-linux/adapter-commit")
 manifest_sha=$(sha256sum "$output/.codex-linux/SHA256SUMS" | awk '{print $1}')
 validations_csv=$(IFS=,; printf '%s' "${validations[*]}")
+if [[ $release_gates -eq 1 ]]; then
+  receipt_status=passed
+else
+  receipt_status=diagnostic-only
+fi
 receipt_part="$receipt.new-$$"
 python3 - "$receipt_part" "$version" "$digest" "$snapshot_digest" \
-  "$adapter_commit" "$manifest_sha" "$validations_csv" <<'PY'
+  "$adapter_commit" "$manifest_sha" "$validations_csv" "$receipt_status" <<'PY'
 from datetime import datetime, timezone
 import json
 import os
 import sys
 
-path, version, digest, snapshot_digest, adapter, manifest, validations = sys.argv[1:]
+path, version, digest, snapshot_digest, adapter, manifest, validations, status = sys.argv[1:]
 value = {
     "schemaVersion": 1,
-    "status": "passed",
+    "status": status,
     "validatedAt": datetime.now(timezone.utc).isoformat(),
     "version": version,
     "sha256": digest,
@@ -123,4 +128,8 @@ with open(path, "w", encoding="utf-8") as handle:
 os.chmod(path, 0o400)
 PY
 mv -f -- "$receipt_part" "$receipt"
-printf 'Candidate validation passed: %s\n' "$receipt"
+if [[ $release_gates -eq 1 ]]; then
+  printf 'Candidate release validation passed: %s\n' "$receipt"
+else
+  printf 'Candidate diagnostic validation passed; receipt is not promotable: %s\n' "$receipt"
+fi

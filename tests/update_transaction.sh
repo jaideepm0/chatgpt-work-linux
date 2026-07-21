@@ -170,6 +170,12 @@ previous=$(readlink "$base/previous")
 [[ $current == versions/* && $previous == versions/* && $current != "$previous" ]] || \
   fail 'stress install left invalid release links'
 for target in "$current" "$previous"; do
+  release_name=${target#versions/}
+  release_digest=${release_name#${identity[0]}-}
+  [[ $release_digest =~ ^[0-9a-f]{64}$ ]] ||
+    fail "managed release does not use a full manifest digest: $target"
+done
+for target in "$current" "$previous"; do
   release="$base/$target"
   [[ -d $release && ! -L $release ]] || fail "managed link is dangling: $target"
   (cd "$release" && sha256sum --check --quiet --strict .codex-linux/SHA256SUMS) || \

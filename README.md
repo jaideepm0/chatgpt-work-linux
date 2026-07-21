@@ -186,6 +186,12 @@ inspect a bounded cleanup with `make prune-upstream-cache` and apply it only via
 See [Update security and release workflow](docs/update-security.md) for the
 transaction boundaries, threat model, recovery rules, and release checklist.
 
+Native package and Flatpak product builds are deliberately disabled. Their
+former targets packaged the historical public-web client, which is not an
+acceptable fallback for the unified desktop application. At present the only
+production path is the explicit local transaction from the exact reviewed
+official `ChatGPT.dmg`; generated proprietary payloads are never published.
+
 ## Documentation
 
 - [Architecture and trust boundaries](docs/architecture.md)

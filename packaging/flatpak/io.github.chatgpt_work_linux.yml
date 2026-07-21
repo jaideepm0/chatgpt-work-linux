@@ -1,53 +1,18 @@
+# Product Flatpak packaging is intentionally disabled. The portable ChatGPT
+# payload must be extracted locally from the user's reviewed official DMG and
+# may not be redistributed in a Flatpak. This manifest fails closed so it can
+# never package the historical Rust/WebKit public-web client by mistake.
 app-id: io.github.chatgpt_work_linux
 runtime: org.gnome.Platform
 runtime-version: '50'
 sdk: org.gnome.Sdk
-sdk-extensions:
-  - org.freedesktop.Sdk.Extension.rust-stable
 command: chatgpt-work-linux
 
-finish-args:
-  - --share=network
-  - --share=ipc
-  - --socket=wayland
-  - --socket=fallback-x11
-  - --socket=pulseaudio
-  - --device=dri
-  - --filesystem=xdg-download
-
-build-options:
-  append-path: /usr/lib/sdk/rust-stable/bin
-  strip: true
-  env:
-    CARGO_HOME: cargo
-    RUSTFLAGS: --remap-path-prefix=/run/build/chatgpt-work-linux=/usr/src/chatgpt-work-linux --remap-path-prefix=/run/build/chatgpt-work-linux/cargo=/usr/src/cargo
-
 modules:
-  - name: chatgpt-work-linux
+  - name: disabled-chatgpt-work-linux-product-build
     buildsystem: simple
     build-commands:
-      - cargo build --release --frozen
-      - install -Dm755 target/release/chatgpt-work-linux /app/bin/chatgpt-work-linux
-      - install -Dm644 packaging/flatpak/io.github.chatgpt_work_linux.desktop /app/share/applications/io.github.chatgpt_work_linux.desktop
-      - install -Dm644 assets/chatgpt-work-linux.png /app/share/icons/hicolor/2048x2048/apps/io.github.chatgpt_work_linux.png
-      - install -Dm644 packaging/linux/io.github.chatgpt_work_linux.metainfo.xml /app/share/metainfo/io.github.chatgpt_work_linux.metainfo.xml
-      - install -Dm644 LICENSE /app/share/licenses/chatgpt-work-linux/LICENSE
-      - install -Dm644 config.example.toml /app/share/doc/chatgpt-work-linux/config.example.toml
-      - install -Dm644 docs/architecture.md /app/share/doc/chatgpt-work-linux/architecture.md
-      - install -Dm644 docs/audit-and-improvement-plan.md /app/share/doc/chatgpt-work-linux/audit-and-improvement-plan.md
-      - install -Dm644 docs/work-upstream-assessment.md /app/share/doc/chatgpt-work-linux/work-upstream-assessment.md
-      - install -Dm644 docs/unified-electron-assessment.md /app/share/doc/chatgpt-work-linux/unified-electron-assessment.md
-      - install -Dm644 assets/ICON-PROVENANCE.md /app/share/doc/chatgpt-work-linux/icon-provenance.md
-    sources:
-      - type: dir
-        path: ../..
-        skip:
-          - .git
-          - .cache
-          - .work
-          - dist
-          - target
-          - ChatGPT.dmg
-          - chatgpt-app
-          - chatgpt-app-next
-      - cargo-sources.json
+      - |-
+        echo 'Flatpak product packaging is disabled; use the local ChatGPT.dmg transaction.' >&2
+        exit 2
+    sources: []
