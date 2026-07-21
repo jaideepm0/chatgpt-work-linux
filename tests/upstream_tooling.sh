@@ -492,6 +492,43 @@ FIXTURE_DMG="$DMG" \
     "$CHECKER" --json >/dev/null
 [ "$(grep -c '^HEAD$' "$CURL_LOG" || true)" -eq "$heads_after_force" ] || \
     fail "metadata updater check ignored its rate-limit cache"
+python3 - "$CHECK_CACHE/check-result.json" <<'PY'
+import json
+import sys
+value = json.load(open(sys.argv[1], encoding="utf-8"))
+assert value["nextCheckAtEpoch"] >= value["checkedAtEpoch"] + 21600
+assert value["nextCheckAtEpoch"] <= value["checkedAtEpoch"] + 21600 + 3600
+PY
+
+# Failed metadata requests use persisted exponential backoff so repeated user
+# invocations cannot hammer the OAISTATIC endpoint during an outage.
+FAIL_CHECK_CACHE="$TMP_DIR/fail-check-cache"
+if CHATGPT_WORK_CACHE_DIR="$FAIL_CHECK_CACHE" \
+    CHATGPT_WORK_UPSTREAM_SNAPSHOT="$SNAPSHOT_ONE" \
+    CHATGPT_WORK_MIN_UPSTREAM_BYTES=1 \
+    CHATGPT_WORK_CURL=/bin/false \
+    "$CHECKER" --json >/dev/null 2>&1; then
+    fail "metadata updater accepted a failed HEAD request"
+fi
+python3 - "$FAIL_CHECK_CACHE/check-failure.json" <<'PY'
+import json
+import sys
+value = json.load(open(sys.argv[1], encoding="utf-8"))
+assert value["attempts"] == 1
+assert value["retryAfterEpoch"] > value["failedAtEpoch"]
+PY
+if CHATGPT_WORK_CACHE_DIR="$FAIL_CHECK_CACHE" \
+    CHATGPT_WORK_UPSTREAM_SNAPSHOT="$SNAPSHOT_ONE" \
+    CHATGPT_WORK_MIN_UPSTREAM_BYTES=1 \
+    CHATGPT_WORK_CURL=/bin/true \
+    "$CHECKER" --json >/dev/null 2>&1; then
+    fail "metadata updater treated a backoff without prior result as current"
+fi
+python3 - "$FAIL_CHECK_CACHE/check-failure.json" <<'PY'
+import json
+import sys
+assert json.load(open(sys.argv[1], encoding="utf-8"))["attempts"] == 1
+PY
 
 # Candidate refresh must be a two-phase transaction. Acquisition may update
 # only candidate paths; promotion requires exact human-reviewed identity and

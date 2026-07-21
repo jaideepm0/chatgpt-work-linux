@@ -8,7 +8,10 @@ snapshot=${CHATGPT_WORK_UPSTREAM_SNAPSHOT:-"$repo_root/docs/upstream-snapshot.js
 cache_dir="${CHATGPT_WORK_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/upstream}"
 result="$cache_dir/check-result.json"
 headers="$cache_dir/check-response.headers"
+failure="$cache_dir/check-failure.json"
 minimum_interval=${CHATGPT_WORK_UPDATE_CHECK_INTERVAL_SECONDS:-21600}
+maximum_jitter=${CHATGPT_WORK_UPDATE_CHECK_JITTER_SECONDS:-3600}
+maximum_failure_backoff=${CHATGPT_WORK_UPDATE_CHECK_MAX_BACKOFF_SECONDS:-21600}
 minimum_size=${CHATGPT_WORK_MIN_UPSTREAM_BYTES:-$((500 * 1024 * 1024))}
 curl_bin=${CHATGPT_WORK_CURL:-curl}
 force=0
@@ -39,6 +42,8 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 [[ $minimum_interval =~ ^[0-9]+$ ]] || fail 'check interval must be an integer'
+[[ $maximum_jitter =~ ^[0-9]+$ ]] || fail 'check jitter must be an integer'
+[[ $maximum_failure_backoff =~ ^[1-9][0-9]*$ ]] || fail 'maximum check backoff must be positive'
 [[ $minimum_size =~ ^[0-9]+$ ]] || fail 'minimum upstream size must be an integer'
 (( minimum_size < 2 * 1024 * 1024 * 1024 )) || fail 'minimum upstream size exceeds safety limit'
 [[ -f $snapshot ]] || fail "missing reviewed snapshot: $snapshot"
@@ -76,32 +81,89 @@ PY
 
 now=$(date +%s)
 if [[ $force -eq 0 && -s $result ]]; then
-  checked=$(python3 - "$result" <<'PY'
+  next_check=$(python3 - "$result" "$minimum_interval" <<'PY'
 import json
 import sys
 try:
     with open(sys.argv[1], encoding="utf-8") as handle:
-        print(int(json.load(handle)["checkedAtEpoch"]))
+        value = json.load(handle)
+    checked = int(value["checkedAtEpoch"])
+    print(int(value.get("nextCheckAtEpoch", checked + int(sys.argv[2]))))
 except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
     print(0)
 PY
 )
-  if (( now >= checked && now - checked < minimum_interval )); then
+  if (( now < next_check )); then
     emit true
     exit 0
   fi
 fi
 
+if [[ $force -eq 0 && -s $failure ]]; then
+  retry_after=$(python3 - "$failure" <<'PY'
+import json
+import sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as handle:
+        print(int(json.load(handle)["retryAfterEpoch"]))
+except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError):
+    print(0)
+PY
+)
+  if (( now < retry_after )); then
+    if [[ -s $result ]]; then
+      emit true
+      exit 0
+    fi
+    fail "previous metadata check failed; retry after epoch $retry_after or use --force"
+  fi
+fi
+
 headers_part="$headers.part"
 result_part="$result.part"
+failure_part="$failure.part"
 cleanup() {
-  rm -f -- "$headers_part" "$result_part"
+  rm -f -- "$headers_part" "$result_part" "$failure_part"
 }
 trap cleanup EXIT HUP INT TERM
-"$curl_bin" --silent --show-error --fail --retry 2 --retry-all-errors \
+if ! "$curl_bin" --silent --show-error --fail --retry 2 --retry-all-errors \
   --retry-delay 2 --connect-timeout 15 --max-time 60 --proto '=https' \
   --header 'Accept-Encoding: identity' --head --dump-header "$headers_part" \
-  --output /dev/null "$official_url"
+  --output /dev/null "$official_url"; then
+  retry_after=$(python3 - "$failure" "$failure_part" "$now" \
+    "$maximum_failure_backoff" <<'PY'
+import json
+from pathlib import Path
+import secrets
+import sys
+
+previous_path, output_path, now_raw, maximum_raw = sys.argv[1:]
+now, maximum = int(now_raw), int(maximum_raw)
+attempts = 1
+try:
+    previous = json.loads(Path(previous_path).read_text(encoding="utf-8"))
+    attempts = min(int(previous.get("attempts", 0)) + 1, 16)
+except (OSError, TypeError, ValueError, json.JSONDecodeError):
+    pass
+base = min(maximum, 60 * (2 ** (attempts - 1)))
+jitter = secrets.randbelow(max(1, min(60, base) + 1))
+retry_after = now + base + jitter
+value = {
+    "schemaVersion": 1,
+    "attempts": attempts,
+    "failedAtEpoch": now,
+    "retryAfterEpoch": retry_after,
+}
+Path(output_path).write_text(
+    json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n",
+    encoding="utf-8",
+)
+print(retry_after)
+PY
+)
+  mv -f -- "$failure_part" "$failure"
+  fail "metadata request failed; next automatic attempt after epoch $retry_after"
+fi
 
 header_value() {
   awk -v wanted="${1,,}" '
@@ -121,10 +183,12 @@ content_type=$(header_value content-type)
 [[ $content_type == application/x-apple-diskimage ]] || fail "unexpected Content-Type: $content_type"
 [[ -n $etag && -n $last_modified ]] || fail 'missing upstream identity headers'
 
-python3 - "$snapshot" "$result_part" "$now" "$etag" "$last_modified" "$content_length" "$official_url" <<'PY'
+python3 - "$snapshot" "$result_part" "$now" "$etag" "$last_modified" \
+  "$content_length" "$official_url" "$minimum_interval" "$maximum_jitter" <<'PY'
 import json
+import secrets
 import sys
-snapshot_path, result_path, checked, etag, modified, size, url = sys.argv[1:]
+snapshot_path, result_path, checked, etag, modified, size, url, interval, jitter_max = sys.argv[1:]
 with open(snapshot_path, encoding="utf-8") as handle:
     snapshot = json.load(handle)
 source = snapshot["source"]
@@ -138,6 +202,9 @@ current = (
 value = {
     "schemaVersion": 1,
     "checkedAtEpoch": int(checked),
+    "nextCheckAtEpoch": int(checked) + int(interval) + secrets.randbelow(
+        min(int(jitter_max), max(0, int(interval) // 4)) + 1
+    ),
     "status": "current" if current else "update-available",
     "url": url,
     "remote": {"etag": etag, "lastModified": modified, "sizeBytes": int(size)},
@@ -154,5 +221,6 @@ with open(result_path, "w", encoding="utf-8") as handle:
 PY
 mv -f -- "$headers_part" "$headers"
 mv -f -- "$result_part" "$result"
+rm -f -- "$failure"
 trap - EXIT HUP INT TERM
 emit false

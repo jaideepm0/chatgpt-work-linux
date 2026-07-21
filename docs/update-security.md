@@ -14,7 +14,9 @@ executed, and macOS code-signature verification is not claimed on Linux.
 
 ## Transaction phases
 
-1. `make check-update` performs a rate-limited metadata-only HEAD request.
+1. `make check-update` performs a metadata-only HEAD request. Successful checks
+   persist a six-hour minimum plus randomized jitter; failures use persisted
+   bounded exponential backoff. There is no synchronized polling daemon.
 2. `make refresh-upstream` downloads into `upstream/candidates`. It never edits
    the reviewed snapshot or content-addressed cache.
 3. Review the candidate snapshot, hash, version, application identity, plugin
