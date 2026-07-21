@@ -674,6 +674,20 @@ fi
 # The Linux adapter is transport only: resolve an exact commit and require a
 # reviewed deterministic archive digest. Mutable branches and modified caches
 # must never enter the ChatGPT DMG transformation.
+IMPLICIT_HOME="$TMP_DIR/implicit-home"
+mkdir -p -- "$IMPLICIT_HOME/programs/codex-desktop-linux"
+git init --quiet "$IMPLICIT_HOME/programs/codex-desktop-linux"
+printf '%s\n' dirty >"$IMPLICIT_HOME/programs/codex-desktop-linux/untracked"
+implicit_output="$TMP_DIR/implicit-adapter.out"
+if HOME="$IMPLICIT_HOME" CHATGPT_WORK_COMPAT_OFFLINE=1 \
+    CHATGPT_WORK_COMPAT_CACHE="$TMP_DIR/implicit-adapter-cache" \
+    "$ADAPTER_PREPARER" >"$implicit_output" 2>&1; then
+    fail 'adapter preparer unexpectedly succeeded with an empty offline cache'
+fi
+if rg -Fq 'compatibility checkout is not clean' "$implicit_output"; then
+    fail 'adapter preparer implicitly inspected ~/programs/codex-desktop-linux'
+fi
+
 ADAPTER_REPO="$TMP_DIR/adapter-source"
 ADAPTER_CACHE="$TMP_DIR/adapter-cache"
 git init --quiet "$ADAPTER_REPO"
@@ -685,6 +699,15 @@ git -C "$ADAPTER_REPO" add install.sh
 git -C "$ADAPTER_REPO" commit --quiet -m fixture
 adapter_commit=$(git -C "$ADAPTER_REPO" rev-parse HEAD)
 adapter_archive_sha=$(git -C "$ADAPTER_REPO" archive --format=tar "$adapter_commit" | sha256sum | awk '{print $1}')
+printf '%s\n' untracked >"$ADAPTER_REPO/untracked"
+if CHATGPT_WORK_COMPAT_REPO="$ADAPTER_REPO" \
+    CHATGPT_WORK_COMPAT_REF="$adapter_commit" \
+    CHATGPT_WORK_COMPAT_ARCHIVE_SHA256="$adapter_archive_sha" \
+    CHATGPT_WORK_COMPAT_CACHE="$ADAPTER_CACHE" \
+    "$ADAPTER_PREPARER" >/dev/null 2>&1; then
+    fail 'adapter preparer accepted an explicitly selected dirty checkout'
+fi
+rm -- "$ADAPTER_REPO/untracked"
 adapter_path=$(CHATGPT_WORK_COMPAT_REPO="$ADAPTER_REPO" \
     CHATGPT_WORK_COMPAT_REF="$adapter_commit" \
     CHATGPT_WORK_COMPAT_ARCHIVE_SHA256="$adapter_archive_sha" \

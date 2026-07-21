@@ -2,15 +2,14 @@
 set -euo pipefail
 umask 077
 
-default_source_repo="$HOME/programs/codex-desktop-linux"
 default_remote_url=https://github.com/ilysenko/codex-desktop-linux.git
 default_commit=b24e5ff2cfabbd1a366f711229b3b115aa4397fe
 default_archive_sha256=4d70d4d738decb0e4bddcd7c167099fdc17038ace8c90af04615edc903d58153
 default_tree_sha256=7a98df3cb73ebf1ee8bec43df77fe5a139c107f7dfefa4e9a6ecf0fe7ed83408
 
-source_repo=${CHATGPT_WORK_COMPAT_REPO:-$default_source_repo}
+source_repo=${CHATGPT_WORK_COMPAT_REPO:-}
 source_repo_overridden=${CHATGPT_WORK_COMPAT_REPO+x}
-remote_url=${CHATGPT_WORK_COMPAT_REMOTE_URL:-$default_remote_url}
+remote_url=$default_remote_url
 ref=${CHATGPT_WORK_COMPAT_REF:-$default_commit}
 cache_root=${CHATGPT_WORK_COMPAT_CACHE:-"${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/compat"}
 offline=${CHATGPT_WORK_COMPAT_OFFLINE:-0}
@@ -22,8 +21,6 @@ fail() {
 
 [[ $ref =~ ^[0-9a-f]{40}$ ]] || fail 'adapter ref must be an exact lowercase 40-character Git commit'
 [[ $offline == 0 || $offline == 1 ]] || fail 'CHATGPT_WORK_COMPAT_OFFLINE must be 0 or 1'
-[[ $remote_url == "$default_remote_url" || -n ${CHATGPT_WORK_COMPAT_REMOTE_URL+x} ]] ||
-  fail 'adapter remote is not allowlisted'
 case $remote_url in
   https://*) ;;
   *) fail 'adapter remote must use HTTPS' ;;
@@ -43,12 +40,11 @@ exec {cache_lock}>"$cache_root/.archive.lock"
 flock "$cache_lock"
 
 repository=
-if [[ -d $source_repo/.git ]]; then
-  git -C "$source_repo" diff --quiet || fail 'compatibility checkout has unstaged changes'
-  git -C "$source_repo" diff --cached --quiet || fail 'compatibility checkout has staged changes'
+if [[ -n $source_repo_overridden ]]; then
+  [[ -d $source_repo/.git ]] || fail "compatibility checkout is missing: $source_repo"
+  [[ -z $(git -C "$source_repo" status --porcelain=v1 --untracked-files=all) ]] ||
+    fail 'compatibility checkout is not clean'
   repository=$source_repo
-elif [[ -n $source_repo_overridden ]]; then
-  fail "compatibility checkout is missing: $source_repo"
 else
   repository="$cache_root/repository.git"
   if [[ ! -d $repository ]]; then

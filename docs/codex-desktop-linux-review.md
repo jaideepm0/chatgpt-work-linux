@@ -2,11 +2,13 @@
 
 Date: 2026-07-17
 
-The external checkout at `~/programs/codex-desktop-linux` was fetched and
-reviewed at `b24e5ff2cfabbd1a366f711229b3b115aa4397fe`. It is not vendored,
-submoduled, or copied into this repository. `prepare-compat-adapter.sh` requires
-a clean checkout, resolves a commit, and creates an immutable cache archive by
-commit hash.
+The external adapter was reviewed at
+`b24e5ff2cfabbd1a366f711229b3b115aa4397fe`. It is not vendored, submoduled, or
+copied into this repository. `prepare-compat-adapter.sh` fetches its allowlisted
+HTTPS remote into the private XDG cache, resolves only that exact commit, and
+requires the reviewed deterministic archive hash. Normal builds do not inspect
+or use `~/programs/codex-desktop-linux`; a clean local checkout is accepted only
+through an explicit test/development override.
 
 ## Components used
 

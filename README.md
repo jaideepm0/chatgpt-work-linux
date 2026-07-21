@@ -77,14 +77,15 @@ metadata is in [docs/upstream-snapshot.json](docs/upstream-snapshot.json).
 - x86_64 Linux with a Wayland session and working user namespaces
 - systemd user session, XDG Desktop Portal, PipeWire, and a desktop portal
   backend
-- build tools required by the external `codex-desktop-linux` adapter
+- build tools required by the pinned external Linux compatibility adapter
 - `curl`, Python 3, Node.js, Rust/Cargo, 7-Zip, `desktop-file-utils`, and
   `appstreamcli`
-- the reference checkout at `~/programs/codex-desktop-linux`, or set
-  `CODEX_DESKTOP_LINUX_REPO`
-
-The adapter checkout is fetched and archived into the XDG cache by exact Git
-commit. It is never copied into this repository.
+The adapter is fetched over HTTPS into the private XDG cache and archived by
+exact Git commit and reviewed archive hash. Normal builds never inspect or use
+`~/programs/codex-desktop-linux` (or any other working checkout). Tests and
+adapter-development reviews may explicitly set `CHATGPT_WORK_COMPAT_REPO` to a
+clean local repository; the exact commit and archive hash gates still apply.
+The adapter is never copied into this repository.
 
 ## Build, verify, and install
 
