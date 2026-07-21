@@ -27,17 +27,21 @@ print(snapshot["application"]["short_version"])
 print(snapshot["artifact"]["sha256"])
 print(snapshot["artifact"]["size"])
 print(snapshot["source"]["url"])
+print(snapshot["artifact"]["name"])
 PY
 )
 version=${expected[0]}
 expected_sha256=${expected[1]}
 expected_size=${expected[2]}
 source_url=${expected[3]}
+artifact_name=${expected[4]}
 dmg=${1:-"${CHATGPT_WORK_DMG_PATH:-${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/upstream/artifacts/$expected_sha256/ChatGPT.dmg}"}
 linux_features_config="$repo_root/config/linux-features.json"
 [[ -f $dmg ]] || fail "missing official ChatGPT input: $dmg"
 [[ $source_url == https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg ]] ||
   fail "snapshot is not tied to the official ChatGPT.dmg URL: $source_url"
+[[ $artifact_name == ChatGPT.dmg ]] ||
+  fail "snapshot artifact name is not canonical ChatGPT.dmg: $artifact_name"
 [[ -s $linux_features_config ]] || fail "Linux feature configuration is missing"
 actual_size=$(stat -c %s -- "$dmg")
 (( actual_size > 500 * 1024 * 1024 )) || fail "artifact is too small for unified ChatGPT: $actual_size bytes"
@@ -84,6 +88,33 @@ CODEX_REBUILD_REPORT_JSON="$report_dir/rebuild-report.json" \
 REBUILD_REPORT_DIR="$report_dir" \
 CARGO_TARGET_DIR="$cargo_target_dir" \
   "$adapter/install.sh" "$dmg"
+
+# Candidate files use a quarantine filename locally, but build provenance must
+# identify the one allowlisted upstream asset rather than a staging pathname.
+# Preserve the adapter's source commit/dirty state for the later install gate.
+python3 - "$stage/.codex-linux/build-info.json" "$version" \
+  "$expected_sha256" "$expected_size" "$artifact_name" <<'PY'
+import json
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+version, digest, size, canonical_name = sys.argv[2:]
+value = json.loads(path.read_text(encoding="utf-8"))
+upstream = value.get("upstreamDmg")
+if not isinstance(upstream, dict):
+    raise SystemExit("build-work-app: adapter build metadata has no upstreamDmg object")
+expected = {
+    "appVersion": version,
+    "sha256": digest,
+    "sizeBytes": int(size),
+}
+for key, wanted in expected.items():
+    if upstream.get(key) != wanted:
+        raise SystemExit(f"build-work-app: adapter build metadata {key} differs from reviewed input")
+upstream["fileName"] = canonical_name
+path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+PY
 
 node "$adapter/scripts/ci/validate-patch-report.js" \
   "$report_dir/patch-report.json" --profile upstream-build

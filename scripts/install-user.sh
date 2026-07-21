@@ -29,17 +29,26 @@ version=$(python3 - "$build/.codex-linux/build-info.json" "$reviewed_snapshot" <
 import json
 import sys
 with open(sys.argv[1], encoding="utf-8") as handle:
-    build = json.load(handle)["upstreamDmg"]
+    build_info = json.load(handle)
+build = build_info["upstreamDmg"]
 with open(sys.argv[2], encoding="utf-8") as handle:
     snapshot = json.load(handle)
 expected = snapshot["artifact"]
 expected_version = snapshot["application"]["short_version"]
+if build.get("fileName") != expected.get("name"):
+    raise SystemExit("install-user: build DMG name differs from the reviewed snapshot")
 if build.get("appVersion") != expected_version:
     raise SystemExit("install-user: build version differs from the reviewed snapshot")
 if build.get("sha256") != expected.get("sha256"):
     raise SystemExit("install-user: build DMG digest differs from the reviewed snapshot")
 if int(build.get("sizeBytes", -1)) != int(expected.get("size", -2)):
     raise SystemExit("install-user: build DMG size differs from the reviewed snapshot")
+source = build_info.get("source")
+if not isinstance(source, dict) or source.get("dirty") is not False:
+    raise SystemExit("install-user: build source provenance is dirty or missing")
+commit = source.get("commit", "")
+if not isinstance(commit, str) or len(commit) != 40 or any(c not in "0123456789abcdef" for c in commit):
+    raise SystemExit("install-user: build source commit is invalid")
 print(expected_version)
 PY
 )

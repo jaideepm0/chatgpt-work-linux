@@ -39,7 +39,15 @@ import json
 import sys
 path, version, digest, size = sys.argv[1:]
 with open(path, "w", encoding="utf-8") as handle:
-    json.dump({"upstreamDmg": {"appVersion": version, "sha256": digest, "sizeBytes": int(size)}}, handle)
+    json.dump({
+        "source": {"commit": "0" * 40, "dirty": False},
+        "upstreamDmg": {
+            "appVersion": version,
+            "fileName": "ChatGPT.dmg",
+            "sha256": digest,
+            "sizeBytes": int(size),
+        },
+    }, handle)
     handle.write("\n")
 PY
   (
@@ -59,6 +67,52 @@ install_fixture() {
   CHATGPT_WORK_BUILD_DIR="$build" CHATGPT_WORK_LINUX_USER_PREFIX="$prefix" \
     "$repo_root/scripts/install-user.sh" >/dev/null
 }
+
+refresh_fixture_manifest() {
+  local build=$1
+  (
+    cd "$build"
+    find . -type f ! -path './.codex-linux/SHA256SUMS' -print0 |
+      LC_ALL=C sort -z | xargs -0 sha256sum >.codex-linux/SHA256SUMS
+  )
+}
+
+# A self-consistent payload is still unpublishable when its source or official
+# artifact identity is ambiguous. These are provenance checks, not merely
+# manifest-integrity checks.
+invalid_name="$temporary/build-invalid-name"
+cp -a -- "$build_a" "$invalid_name"
+python3 - "$invalid_name/.codex-linux/build-info.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+value = json.load(open(path, encoding="utf-8"))
+value["upstreamDmg"]["fileName"] = "ChatGPT-work.dmg"
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(value, handle)
+    handle.write("\n")
+PY
+refresh_fixture_manifest "$invalid_name"
+if install_fixture "$invalid_name" >/dev/null 2>&1; then
+  fail 'installer accepted a noncanonical upstream artifact name'
+fi
+
+dirty_source="$temporary/build-dirty-source"
+cp -a -- "$build_a" "$dirty_source"
+python3 - "$dirty_source/.codex-linux/build-info.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+value = json.load(open(path, encoding="utf-8"))
+value["source"]["dirty"] = True
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(value, handle)
+    handle.write("\n")
+PY
+refresh_fixture_manifest "$dirty_source"
+if install_fixture "$dirty_source" >/dev/null 2>&1; then
+  fail 'installer accepted dirty source provenance'
+fi
 
 install_fixture "$build_a"
 base="$prefix/opt/chatgpt-work-linux"
