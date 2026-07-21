@@ -53,6 +53,11 @@ rg -Fq 'npm ci --ignore-scripts --no-audit --no-fund' \
   printf 'runtime_hardening: native-module build is not bound to the reviewed npm lock\n' >&2
   exit 1
 }
+rg -Fq 'native_lock_dir="$SCRIPT_DIR/nix/native-modules"' \
+  "$repo_root/scripts/patch-compat-adapter.py" || {
+  printf 'runtime_hardening: native-module lock does not resolve from the adapter root\n' >&2
+  exit 1
+}
 for electron_digest in \
   487a667ca6a734b958c16cff1df74d9d44d2c18a6cccdb4dd51f6301a356c420 \
   2a375ff973fb7bddc538a4f67b2141947e9d72513a1baa2beabec2a7f65cd0f0; do

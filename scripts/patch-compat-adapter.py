@@ -99,7 +99,7 @@ def main() -> None:
         --ignore-scripts >&2
     npm install "better-sqlite3@$bs3_build_ver" "node-pty@$npty_ver" --ignore-scripts >&2
 '''
-    new_npm_install = '''    local native_lock_dir="$REPO_DIR/nix/native-modules"
+    new_npm_install = '''    local native_lock_dir="$SCRIPT_DIR/nix/native-modules"
     [ -f "$native_lock_dir/package.json" ] || error "Reviewed native-module package manifest is missing"
     [ -f "$native_lock_dir/package-lock.json" ] || error "Reviewed native-module lock is missing"
     cp "$native_lock_dir/package.json" "$native_lock_dir/package-lock.json" "$build_dir/"
