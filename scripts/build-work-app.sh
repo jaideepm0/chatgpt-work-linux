@@ -2,16 +2,22 @@
 set -euo pipefail
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)
-dmg=${1:-"${CHATGPT_WORK_DMG_PATH:-${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/upstream/ChatGPT-work.dmg}"}
 output=${CHATGPT_WORK_BUILD_DIR:-"$repo_root/.work/chatgpt-work-app"}
+reviewed_snapshot=${CHATGPT_WORK_UPSTREAM_SNAPSHOT:-"$repo_root/docs/upstream-snapshot.json"}
+
+mkdir -p -- "$repo_root/.work"
+if [[ ${CHATGPT_WORK_UPSTREAM_LOCK_HELD:-0} != 1 ]]; then
+  exec {upstream_lock_fd}>"$repo_root/.work/upstream-transaction.lock"
+  flock "$upstream_lock_fd"
+fi
 
 fail() {
   printf 'build-work-app: %s\n' "$*" >&2
   exit 1
 }
 
-[[ -f $dmg ]] || fail "missing official ChatGPT input: $dmg"
-readarray -t expected < <(python3 - "$repo_root/docs/upstream-snapshot.json" <<'PY'
+[[ -f $reviewed_snapshot ]] || fail "missing reviewed snapshot: $reviewed_snapshot"
+readarray -t expected < <(python3 - "$reviewed_snapshot" <<'PY'
 import json
 import sys
 
@@ -27,7 +33,9 @@ version=${expected[0]}
 expected_sha256=${expected[1]}
 expected_size=${expected[2]}
 source_url=${expected[3]}
+dmg=${1:-"${CHATGPT_WORK_DMG_PATH:-${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/upstream/artifacts/$expected_sha256/ChatGPT.dmg}"}
 linux_features_config="$repo_root/config/linux-features.json"
+[[ -f $dmg ]] || fail "missing official ChatGPT input: $dmg"
 [[ $source_url == https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg ]] ||
   fail "snapshot is not tied to the official ChatGPT.dmg URL: $source_url"
 [[ -s $linux_features_config ]] || fail "Linux feature configuration is missing"
@@ -138,18 +146,24 @@ python3 "$repo_root/scripts/configure-work-runtime.py" \
 # resources. Preserve one small local copy at the exact packaged-runtime path.
 python3 - "$stage/resources/app.asar" <<'PY'
 from pathlib import Path
+import re
 import sys
 
 payload = Path(sys.argv[1]).read_bytes()
-anchors = {
-    b"case i.a.Dev:case i.a.Prod:return`icon-chatgpt`": "ChatGPT production tray brand",
-    b"if(process.platform===`linux`){let r=`${fv(e,t)}.png`": "Linux tray resource lookup",
-    b"(A||codexLinuxIsTrayEnabled())&&Ce() ": "default-on Linux tray startup",
-}
-for anchor, label in anchors.items():
-    count = payload.count(anchor)
-    if count != 1:
-        raise SystemExit(f"build-work-app: expected one {label} anchor, found {count}")
+brand = re.compile(
+    rb"case ([A-Za-z_$][A-Za-z0-9_$]*\.[A-Za-z_$][A-Za-z0-9_$]*)\.Dev:"
+    rb"case \1\.Prod:return`icon-chatgpt`"
+)
+lookup = re.compile(
+    rb"if\(process\.platform===`linux`\)\{let ([A-Za-z_$][A-Za-z0-9_$]*)="
+    rb"`\$\{[A-Za-z_$][A-Za-z0-9_$]*\(e,t\)\}\.png`,.{0,500}?"
+    rb"nativeImage\.createFromPath\(.{0,220}?process\.resourcesPath,\1\)",
+    re.DOTALL,
+)
+if len(brand.findall(payload)) != 1:
+    raise SystemExit("build-work-app: ChatGPT production tray brand is missing or ambiguous")
+if len(lookup.findall(payload)) != 1:
+    raise SystemExit("build-work-app: Linux packaged tray resource lookup is missing or ambiguous")
 PY
 install -m 0644 -- "$repo_root/assets/chatgpt-work-linux.png" \
   "$stage/resources/icon-chatgpt.png"
@@ -210,11 +224,8 @@ if rg -a -Fq 'function codexLinuxDiscoveredIdeTargets(' "$stage/resources/app.as
   fail 'disabled editor-discovery integration was unexpectedly packaged'
 fi
 for runtime_anchor in \
-  'codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)===!0' \
   'codexLinuxIsTrayEnabled=()=>codexLinuxGetSetting(`codex-linux-system-tray-enabled`)' \
   'codexLinuxIsWarmStartEnabled=()=>codexLinuxGetSetting(`codex-linux-warm-start-enabled`)' \
-  'if(typeof t.whenReady!=`function`)return!0;' \
-  'return typeof t.isReady==`function`?t.isReady():!0' \
   'codexLinuxStartLaunchActionSocket=()=>' \
   'codexLinuxDefaultLaunchActionSocket=()=>' \
   'codexLinuxRegisterTray(new' \
@@ -222,6 +233,41 @@ for runtime_anchor in \
   rg -a -Fq "$runtime_anchor" "$stage/resources/app.asar" || \
     fail "required tray/warm-start runtime anchor is missing: $runtime_anchor"
 done
+python3 - "$stage/resources/app.asar" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+payload = Path(sys.argv[1]).read_bytes()
+pattern = re.compile(
+    rb"codexLinuxGetSetting=([A-Za-z_$][A-Za-z0-9_$]*)=>"
+    rb"process\.platform!==`linux`\|\|([A-Za-z_$][A-Za-z0-9_$]*)\.globalState\.get\(\1\)===!0"
+)
+matches = pattern.findall(payload)
+if len(matches) != 1:
+    raise SystemExit(f"build-work-app: expected one opt-in lifecycle setting helper, found {len(matches)}")
+direct_tray = re.compile(
+    rb"\([A-Za-z_$][A-Za-z0-9_$]*\|\|codexLinuxIsTrayEnabled\(\)\)&&"
+    rb"[A-Za-z_$][A-Za-z0-9_$]*\(\)"
+)
+safe_tray = re.compile(
+    rb"\([A-Za-z_$][A-Za-z0-9_$]*\|\|process\.platform===`linux`&&"
+    rb"\(typeof codexLinuxIsTrayEnabled!==`function`\|\|codexLinuxIsTrayEnabled\(\)\)\)"
+    rb"&&[A-Za-z_$][A-Za-z0-9_$]*\(\)"
+)
+tray_count = len(direct_tray.findall(payload)) + len(safe_tray.findall(payload))
+if tray_count != 1:
+    raise SystemExit(f"build-work-app: expected one settings-gated tray startup branch, found {tray_count}")
+wait_fallback = re.compile(
+    rb"if\(typeof ([A-Za-z_$][A-Za-z0-9_$]*)\.whenReady!=`function`\)return!0;"
+)
+state_fallback = re.compile(
+    rb"return typeof ([A-Za-z_$][A-Za-z0-9_$]*)\.isReady==`function`\?"
+    rb"\1\.isReady\(\):!0"
+)
+if len(wait_fallback.findall(payload)) != 1 or len(state_fallback.findall(payload)) != 1:
+    raise SystemExit("build-work-app: portable tray readiness fallbacks are missing or ambiguous")
+PY
 rg -Fq 'linux_setting_enabled "codex-linux-warm-start-enabled" 0' "$stage/start.sh" || \
   fail 'warm-start launcher is not explicit opt-in'
 ldd "$stage/chatgpt-work-linux-bin" | rg -q 'not found' && fail 'Electron has unresolved shared libraries'

@@ -45,6 +45,8 @@ electron_pid=
 profile_launch_sequence=0
 profile_scope_cgroup=
 profile_scope_unit=
+profile_runner_scope_unit=
+profile_runner_scope_cgroup=
 mkdir -m 0700 -- "$temporary/runtime"
 ln -s -- "$session_runtime/$WAYLAND_DISPLAY" "$temporary/runtime/$WAYLAND_DISPLAY"
 mkdir -p -- "$temporary/config" "$temporary/data" "$temporary/cache" "$temporary/state"
@@ -204,6 +206,44 @@ constrained_tree_is_contained() {
   (( escaped == 0 ))
 }
 
+resolve_constrained_measurement_scope() {
+  local root=$1 membership unit expected_unit pid escaped
+  (( memory_max_mib > 0 )) || return 0
+  membership=$(awk -F: '$1 == 0 {print $3}' "/proc/$root/cgroup" 2>/dev/null || true)
+  [[ -n $membership ]] || return 1
+  if [[ $membership == "$profile_runner_scope_cgroup" || $membership == "$profile_runner_scope_cgroup"/* ]]; then
+    return 0
+  fi
+
+  # Plasma 6 moves a mapped Wayland client into an app-id/PID scope, sometimes
+  # leaving early children behind. Validate that exact destination, then move
+  # the complete tree back into the already constrained runner scope. A single
+  # common cgroup is required: two separately capped sibling scopes would not
+  # enforce the 768 MiB whole-product budget.
+  unit=${membership##*/}
+  expected_unit="app-io.github.chatgpt_work_linux-$root.scope"
+  [[ $unit == "$expected_unit" ]] || {
+    printf 'profile-runtime: refusing unexpected constrained scope %s for pid %s\n' \
+      "$membership" "$root" >&2
+    return 1
+  }
+  [[ -w /sys/fs/cgroup$profile_runner_scope_cgroup/cgroup.procs ]] || return 1
+  for _ in {1..5}; do
+    for pid in $(tree_pids "$root"); do
+      [[ -d /proc/$pid ]] || continue
+      printf '%s\n' "$pid" >"/sys/fs/cgroup$profile_runner_scope_cgroup/cgroup.procs" || return 1
+    done
+    escaped=0
+    for pid in $(tree_pids "$root"); do
+      membership=$(awk -F: '$1 == 0 {print $3}' "/proc/$pid/cgroup" 2>/dev/null || true)
+      [[ $membership == "$profile_runner_scope_cgroup" || $membership == "$profile_runner_scope_cgroup"/* ]] || escaped=1
+    done
+    (( escaped == 1 )) || return 0
+    sleep 0.05
+  done
+  return 1
+}
+
 profile_tree_is_healthy() {
   local root=$1 pid command renderer=0 app_server=0
   kill -0 "$root" 2>/dev/null || return 1
@@ -220,6 +260,7 @@ stop_profile_processes() {
   local pids="" remaining=""
   local -a pid_list=()
   if [[ -n $profile_scope_unit ]]; then
+    [[ $profile_runner_scope_unit != "$profile_scope_unit" ]] || profile_runner_scope_unit=
     systemctl --user stop "$profile_scope_unit" >/dev/null 2>&1 || true
     for _ in {1..30}; do
       systemctl --user is-active --quiet "$profile_scope_unit" 2>/dev/null || break
@@ -228,6 +269,11 @@ stop_profile_processes() {
     profile_scope_unit=
     profile_scope_cgroup=
   fi
+  if [[ -n $profile_runner_scope_unit ]]; then
+    systemctl --user stop "$profile_runner_scope_unit" >/dev/null 2>&1 || true
+    profile_runner_scope_unit=
+  fi
+  profile_runner_scope_cgroup=
   if [[ ${electron_pid:-} =~ ^[1-9][0-9]*$ ]]; then
     pids=$(tree_pids "$electron_pid" 2>/dev/null || true)
   fi
@@ -255,7 +301,7 @@ trap cleanup EXIT HUP INT TERM
 
 launch_profile() {
   local -a launch_env=(
-    env -u DISPLAY
+    env -u DISPLAY -u KDE_APPLICATIONS_AS_SCOPE
     CODEX_OZONE_PLATFORM=wayland
     CHATGPT_WORK_CODEX_HOME="$temporary/data/codex-home"
     XDG_SESSION_TYPE=wayland
@@ -269,6 +315,7 @@ launch_profile() {
   profile_launch_sequence=$((profile_launch_sequence + 1))
   if (( memory_max_mib > 0 )); then
     profile_scope_unit="app-io.github.chatgpt_work_linux-profile-$$-$profile_launch_sequence.scope"
+    profile_runner_scope_unit=$profile_scope_unit
     runner=(
       systemd-run --user --scope --quiet --collect
       # Use an app-style name, then verify containment: some desktops still
@@ -296,6 +343,7 @@ launch_profile() {
       printf 'profile-runtime: constrained scope does not expose writable group-OOM control\n' >&2
       return 1
     }
+    profile_runner_scope_cgroup=$profile_scope_cgroup
     printf '1\n' >"/sys/fs/cgroup$profile_scope_cgroup/memory.oom.group"
   fi
 }
@@ -309,6 +357,10 @@ ready=0
 for sample_index in {1..180}; do
   electron_pid=$(cat "$pid_file" 2>/dev/null || true)
   if [[ $electron_pid =~ ^[1-9][0-9]*$ ]] && kill -0 "$electron_pid" 2>/dev/null; then
+    resolve_constrained_measurement_scope "$electron_pid" || {
+      printf 'profile-runtime: could not constrain the actual Electron scope\n' >&2
+      exit 1
+    }
     if (( sample_index % 4 == 0 )); then
       read -r current_pss _ _ < <(memory_kib "$electron_pid")
       (( current_pss > peak_pss )) && peak_pss=$current_pss
@@ -357,6 +409,10 @@ electron_pid=
 for sample_index in {1..180}; do
   electron_pid=$(cat "$pid_file" 2>/dev/null || true)
   if [[ $electron_pid =~ ^[1-9][0-9]*$ ]] && kill -0 "$electron_pid" 2>/dev/null; then
+    resolve_constrained_measurement_scope "$electron_pid" || {
+      printf 'profile-runtime: could not constrain the actual Electron scope\n' >&2
+      exit 1
+    }
     if (( sample_index % 4 == 0 )); then
       read -r current_pss _ _ < <(memory_kib "$electron_pid")
       (( current_pss > peak_pss )) && peak_pss=$current_pss
@@ -393,7 +449,7 @@ for _ in {1..10}; do
   sleep 0.1
 done
 warm_handoff_start_ns=$(date +%s%N)
-timeout 10 env -u DISPLAY \
+timeout 10 env -u DISPLAY -u KDE_APPLICATIONS_AS_SCOPE \
   CODEX_OZONE_PLATFORM=wayland \
   CHATGPT_WORK_CODEX_HOME="$temporary/data/codex-home" \
   XDG_SESSION_TYPE=wayland \

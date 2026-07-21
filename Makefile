@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := build
 
-.PHONY: build check check-update clean doctor ensure-build install-user migrate-codex-history profile-runtime profile-runtime-constrained refresh-upstream run sbom smoke-wayland test uninstall-user update-user
+.PHONY: build check check-update clean doctor ensure-build install-user migrate-codex-history migrate-electron-profile profile-runtime profile-runtime-constrained prune-upstream-cache refresh-upstream rollback-user run sbom smoke-wayland test uninstall-user update-user validate-upstream-candidate
 
 build:
 	bash scripts/fetch-upstream.sh
@@ -11,9 +11,8 @@ check-update:
 	bash scripts/check-upstream.sh
 
 ensure-build:
-	@expected=$$(python3 -c 'import json; print(json.load(open("docs/upstream-snapshot.json"))["application"]["short_version"])'); \
-	if [ ! -x .work/chatgpt-work-app/start.sh ] || \
-	   ! rg -q "^CHATGPT_WORK_UPSTREAM_VERSION=$$expected$$" .work/chatgpt-work-app/start.sh; then \
+	@if [ ! -x .work/chatgpt-work-app/start.sh ] || \
+	   ! python3 scripts/verify-reviewed-build.py .work/chatgpt-work-app docs/upstream-snapshot.json >/dev/null 2>&1; then \
 		$(MAKE) build; \
 	fi
 
@@ -39,9 +38,11 @@ profile-runtime-constrained: ensure-build
 test:
 	env PATH=/usr/bin:/bin cargo test --locked
 	bash tests/upstream_tooling.sh
+	bash tests/update_transaction.sh
+	bash tests/electron_profile_migration.sh
 	bash tests/runtime_hardening.sh
 	bash tests/codex_history_migration.sh
-	python3 -m py_compile scripts/configure-work-runtime.py scripts/migrate-codex-history.py scripts/patch-compat-adapter.py scripts/patch-computer-use-wayland.py scripts/patch-work-asar.py scripts/validate-work-patch-report.py scripts/inspect-upstream.py
+	python3 -m py_compile scripts/configure-work-runtime.py scripts/migrate-codex-history.py scripts/patch-compat-adapter.py scripts/patch-computer-use-wayland.py scripts/patch-work-asar.py scripts/validate-work-patch-report.py scripts/inspect-upstream.py scripts/verify-reviewed-build.py
 
 check:
 	env PATH=/usr/bin:/bin cargo fmt --all -- --check
@@ -62,14 +63,26 @@ sbom:
 refresh-upstream:
 	bash scripts/refresh-upstream-snapshot.sh
 
+validate-upstream-candidate:
+	bash scripts/validate-upstream-candidate.sh
+
 update-user:
 	bash scripts/update-user.sh
+
+rollback-user:
+	bash scripts/rollback-user.sh
+
+prune-upstream-cache:
+	bash scripts/prune-upstream-cache.sh
 
 install-user: ensure-build
 	bash scripts/install-user.sh
 
 migrate-codex-history:
 	python3 scripts/migrate-codex-history.py
+
+migrate-electron-profile:
+	bash scripts/migrate-electron-profile.sh
 
 uninstall-user:
 	bash scripts/uninstall-user.sh

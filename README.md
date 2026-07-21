@@ -96,13 +96,22 @@ make smoke-wayland
 make install-user
 ```
 
-`make build` downloads the allowlisted official artifact when necessary,
-verifies it against the checked-in snapshot, and publishes a completed build
-atomically at `.work/chatgpt-work-app`. `make install-user` publishes an
+`make build` downloads the allowlisted official artifact when necessary into a
+content-addressed cache as `ChatGPT.dmg`, verifies it against the checked-in
+snapshot, and publishes a completed build atomically at
+`.work/chatgpt-work-app`. `make install-user` publishes an
 immutable release under `~/.local/opt/chatgpt-work-linux`, switches `current`
 only after verification, and retains one previous release for rollback. Tray
-and warm start are default-on when their setting is absent; an explicit user
-choice of `false` remains authoritative.
+and warm start require explicit opt-in; an absent setting remains disabled.
+
+The first normal user install transactionally copies an existing
+`~/.config/Codex` Electron identity into the required isolated profile, while
+excluding disposable Chromium caches. It never replaces a non-empty target
+silently. Existing installations that already split the profiles can recover
+the signed-in identity with `make migrate-electron-profile`; if both profiles
+contain data, review them and run
+`scripts/migrate-electron-profile.sh --replace-target`. The displaced target is
+kept under XDG state as a timestamped backup.
 
 The app and Codex CLI intentionally share `$CODEX_HOME` (normally `~/.codex`),
 so local Codex tasks and project threads remain visible on both surfaces. If a
@@ -134,17 +143,40 @@ make uninstall-user
 ## Updating upstream
 
 ```bash
+make check-update
 make refresh-upstream
-./scripts/refresh-upstream-snapshot.sh --check
+# Review the candidate snapshot, DMG provenance, adapter drift, and patch report.
+make validate-upstream-candidate
+./scripts/refresh-upstream-snapshot.sh --promote \
+  --expected-version VERSION \
+  --expected-sha256 SHA256
+make update-user
 ```
 
-Review snapshot and adapter drift before committing a new version. Required
+Refresh never changes the reviewed snapshot or reviewed artifact cache. It
+stores an isolated candidate. Promotion is an offline second phase requiring
+the exact reviewed version and SHA-256 plus successful isolated build, doctor,
+Wayland smoke, and both runtime-profile receipts. It rejects downgrades unless
+separately authorized and publishes the DMG under its digest before switching
+the snapshot. `make update-user` consumes only that reviewed snapshot; it never
+promotes upstream
+metadata.
+
+Review snapshot and adapter drift before promoting and committing a new version. Required
 patch misses are fatal, including every Computer Use capability patch;
 optional misses remain visible in the patch report. Tray creation,
 close-to-tray quit handling, settings persistence, single-instance locking,
 and warm-start launch actions are mandatory too.
 Build reports are stored under `.work/reports/<version>/` and are ignored by
 Git.
+
+The user install can be swapped back to its verified previous release with
+`make rollback-user`. Immutable upstream caches are retained for recovery;
+inspect a bounded cleanup with `make prune-upstream-cache` and apply it only via
+`scripts/prune-upstream-cache.sh --keep 2 --apply`.
+
+See [Update security and release workflow](docs/update-security.md) for the
+transaction boundaries, threat model, recovery rules, and release checklist.
 
 ## Documentation
 

@@ -18,6 +18,20 @@ def replace_same_size(payload: bytes, old: bytes, new: bytes, label: str) -> byt
     return payload.replace(old, new + (b" " * (len(old) - len(new))), 1)
 
 
+def replace_unique_pattern(
+    payload: bytes, pattern: re.Pattern[bytes], transform, label: str
+) -> bytes:
+    matches = list(pattern.finditer(payload))
+    if len(matches) != 1:
+        raise SystemExit(f"patch-work-asar: expected one {label}, found {len(matches)}")
+    match = matches[0]
+    original = match.group(0)
+    replacement = transform(original)
+    if len(replacement) != len(original):
+        raise SystemExit(f"patch-work-asar: {label} replacement changed byte length")
+    return payload[: match.start()] + replacement + payload[match.end() :]
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("asar", type=Path)
@@ -34,10 +48,14 @@ def main() -> None:
     # freshly created profile retain the full Electron/app-server tree after
     # the last window closes.  `=== true` is the same byte length, preserves
     # explicit user choices, and keeps the ASAR layout stable.
-    patched = replace_same_size(
+    lifecycle_setting = re.compile(
+        rb"codexLinuxGetSetting=([A-Za-z_$][A-Za-z0-9_$]*)=>"
+        rb"process\.platform!==`linux`\|\|([A-Za-z_$][A-Za-z0-9_$]*)\.globalState\.get\(\1\)!==!1"
+    )
+    patched = replace_unique_pattern(
         patched,
-        b"codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)!==!1",
-        b"codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)===!0",
+        lifecycle_setting,
+        lambda value: value.replace(b"!==!1", b"===!0", 1),
         "Linux lifecycle setting default",
     )
 
@@ -45,27 +63,69 @@ def main() -> None:
     # reviewed Linux setting disconnected. Route the existing startup branch
     # through the adapter's setting helper. The replacement remains
     # exactly the same size so ASAR offsets are unchanged.
-    tray_start_anchor = b"(A||process.platform===`linux`)&&Ce()"
-    tray_start_replacement = b"(A||codexLinuxIsTrayEnabled())&&Ce() "
-    patched = replace_same_size(
-        patched, tray_start_anchor, tray_start_replacement, "Linux tray startup branch"
+    tray_start_anchor = re.compile(
+        rb"\(([A-Za-z_$][A-Za-z0-9_$]*)\|\|process\.platform===`linux`\)&&"
+        rb"([A-Za-z_$][A-Za-z0-9_$]*)\(\)"
     )
+    safe_tray_start = re.compile(
+        rb"\(([A-Za-z_$][A-Za-z0-9_$]*)\|\|process\.platform===`linux`&&"
+        rb"\(typeof codexLinuxIsTrayEnabled!==`function`\|\|codexLinuxIsTrayEnabled\(\)\)\)"
+        rb"&&([A-Za-z_$][A-Za-z0-9_$]*)\(\)"
+    )
+    old_tray_count = len(tray_start_anchor.findall(patched))
+    safe_tray_count = len(safe_tray_start.findall(patched))
+    if old_tray_count == 1 and safe_tray_count == 0:
+        patched = replace_unique_pattern(
+            patched,
+            tray_start_anchor,
+            lambda value: value.replace(
+                b"process.platform===`linux`", b"codexLinuxIsTrayEnabled()", 1
+            )
+            + b" ",
+            "Linux tray startup branch",
+        )
+    elif old_tray_count == 0 and safe_tray_count == 1:
+        # Newer adapters already connect startup to the required settings helper
+        # while tolerating load-order differences. The build separately proves
+        # that helper exists and is opt-in, so no byte patch is needed here.
+        pass
+    else:
+        raise SystemExit(
+            "patch-work-asar: expected one unambiguous Linux tray startup branch, "
+            f"found old={old_tray_count} safe={safe_tray_count}"
+        )
 
     # The official runtime extends Tray with whenReady()/isReady(). Stock
     # Electron implements the portable Tray API without those private methods.
     # Its constructor is synchronous, so absence of the extensions is the
     # successful fallback; treating it as failure immediately destroys the
     # standard Linux tray and also disables close-to-tray.
-    patched = replace_same_size(
+    tray_wait = re.compile(
+        rb"if\(typeof ([A-Za-z_$][A-Za-z0-9_$]*)\.whenReady!=`function`\)"
+        rb"return process\.platform!==`linux`;"
+    )
+    patched = replace_unique_pattern(
         patched,
-        b"if(typeof t.whenReady!=`function`)return process.platform!==`linux`;",
-        b"if(typeof t.whenReady!=`function`)return!0;",
+        tray_wait,
+        lambda value: value.replace(
+            b"return process.platform!==`linux`;",
+            b"return!0;" + b" " * (len(b"return process.platform!==`linux`;") - len(b"return!0;")),
+            1,
+        ),
         "portable Electron tray readiness fallback",
     )
-    patched = replace_same_size(
+    tray_state = re.compile(
+        rb"return typeof ([A-Za-z_$][A-Za-z0-9_$]*)\.isReady==`function`\?"
+        rb"\1\.isReady\(\):process\.platform!==`linux`"
+    )
+    patched = replace_unique_pattern(
         patched,
-        b"return typeof t.isReady==`function`?t.isReady():process.platform!==`linux`",
-        b"return typeof t.isReady==`function`?t.isReady():!0",
+        tray_state,
+        lambda value: value.replace(
+            b"process.platform!==`linux`",
+            b"!0" + b" " * (len(b"process.platform!==`linux`") - len(b"!0")),
+            1,
+        ),
         "portable Electron tray state fallback",
     )
 

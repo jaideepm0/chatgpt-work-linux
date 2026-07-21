@@ -16,6 +16,7 @@ electron_pid=
 cleanup() {
   [[ -z ${electron_pid:-} ]] || kill "$electron_pid" 2>/dev/null || true
   [[ -z ${launcher_pid:-} ]] || kill "$launcher_pid" 2>/dev/null || true
+  chmod -R u+w -- "$temporary" 2>/dev/null || true
   rm -rf -- "$temporary"
 }
 trap cleanup EXIT HUP INT TERM
@@ -23,11 +24,18 @@ mkdir -m 0700 -- "$temporary/runtime"
 ln -s -- "$session_runtime/$WAYLAND_DISPLAY" "$temporary/runtime/$WAYLAND_DISPLAY"
 mkdir -p -- "$temporary/config" "$temporary/data" "$temporary/cache" "$temporary/state"
 mkdir -p -- "$temporary/config/chatgpt-work-linux"
+mkdir -p -- "$temporary/data/codex-home"
 # Exercise the optional lifecycle integrations explicitly. Fresh profiles keep
 # both disabled so closing the last window releases the heavy runtime tree.
+# The launcher reads settings.json, while the packaged main process correctly
+# reads Codex global state; seed both sides of that reviewed persistence
+# contract instead of accidentally testing only the launcher half.
 printf '%s\n' \
   '{"codex-linux-system-tray-enabled":true,"codex-linux-warm-start-enabled":true}' \
   >"$temporary/config/chatgpt-work-linux/settings.json"
+printf '%s\n' \
+  '{"codex-linux-system-tray-enabled":true,"codex-linux-warm-start-enabled":true}' \
+  >"$temporary/data/codex-home/.codex-global-state.json"
 
 doctor=$(XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY="$WAYLAND_DISPLAY" "$launcher" doctor --json)
 python3 - "$doctor" <<'PY'

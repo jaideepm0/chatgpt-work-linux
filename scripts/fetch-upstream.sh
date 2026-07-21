@@ -8,9 +8,9 @@ REPO_DIR="$(cd -- "$SCRIPT_DIR/.." && pwd -P)"
 OFFICIAL_URL="https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
 URL="$OFFICIAL_URL"
 CACHE_DIR="${CHATGPT_WORK_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/upstream}"
-OUTPUT="${CHATGPT_WORK_DMG_PATH:-$CACHE_DIR/ChatGPT-work.dmg}"
-METADATA="$CACHE_DIR/upstream-snapshot.json"
-HEADERS_FILE="$CACHE_DIR/response.headers"
+OUTPUT="${CHATGPT_WORK_DMG_PATH:-}"
+METADATA="${CHATGPT_WORK_UPSTREAM_METADATA:-}"
+HEADERS_FILE="${CHATGPT_WORK_UPSTREAM_HEADERS:-}"
 OFFLINE=0
 FORCE=0
 ALLOW_UNREVIEWED=0
@@ -29,7 +29,7 @@ Usage: scripts/fetch-upstream.sh [OPTIONS]
 Fetch and inspect the allowlisted official unified ChatGPT macOS artifact.
 
 Options:
-  --output PATH       DMG destination (default: XDG cache ChatGPT-work.dmg)
+  --output PATH       DMG destination (default: immutable reviewed-hash cache)
   --metadata PATH     deterministic inspection JSON destination
   --headers PATH      raw HEAD response headers destination/input
   --url URL           upstream URL; currently only the official URL is allowed
@@ -118,6 +118,40 @@ if [ "$ALLOW_UNREVIEWED" -eq 0 ]; then
     [ -f "$REVIEWED_SNAPSHOT" ] || die "reviewed snapshot is missing: $REVIEWED_SNAPSHOT"
 fi
 
+if [ -z "$OUTPUT" ]; then
+    if [ "$ALLOW_UNREVIEWED" -eq 0 ]; then
+        REVIEWED_SHA256=$("$PYTHON_BIN" - "$REVIEWED_SNAPSHOT" <<'PY'
+import json
+import re
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    digest = json.load(handle)["artifact"]["sha256"]
+if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+    raise SystemExit("reviewed snapshot has an invalid SHA-256")
+print(digest)
+PY
+        ) || die "could not resolve the reviewed artifact digest"
+        artifact_dir="$CACHE_DIR/artifacts/$REVIEWED_SHA256"
+        OUTPUT="$artifact_dir/ChatGPT.dmg"
+        METADATA="${METADATA:-$artifact_dir/upstream-snapshot.json}"
+        HEADERS_FILE="${HEADERS_FILE:-$artifact_dir/response.headers}"
+    else
+        candidate_dir="$CACHE_DIR/candidates"
+        OUTPUT="$candidate_dir/ChatGPT.candidate.dmg"
+        METADATA="${METADATA:-$candidate_dir/upstream-snapshot.candidate.json}"
+        HEADERS_FILE="${HEADERS_FILE:-$candidate_dir/response.headers}"
+    fi
+fi
+METADATA="${METADATA:-$(dirname -- "$OUTPUT")/upstream-snapshot.json}"
+HEADERS_FILE="${HEADERS_FILE:-$(dirname -- "$OUTPUT")/response.headers}"
+
+if [ "${CHATGPT_WORK_UPSTREAM_LOCK_HELD:-0}" != 1 ]; then
+    mkdir -p -- "$REPO_DIR/.work"
+    exec {upstream_lock_fd}>"$REPO_DIR/.work/upstream-transaction.lock"
+    flock "$upstream_lock_fd"
+fi
+
 mkdir -p -- "$(dirname -- "$OUTPUT")" "$(dirname -- "$METADATA")" \
     "$(dirname -- "$HEADERS_FILE")" "$CACHE_DIR"
 chmod 0700 "$CACHE_DIR"
@@ -138,6 +172,7 @@ HEAD_PART="$HEADERS_FILE.part"
 GET_HEADERS_PART="$CACHE_DIR/get-response.headers.part"
 STATE_FILE="$CACHE_DIR/download.state"
 STATE_PART="$STATE_FILE.part"
+MIGRATION_PART="$OUTPUT.migrate.$$"
 
 # Keep default partials under ignored .cache while retaining an atomic rename.
 if [ "$(stat -c %d -- "$CACHE_DIR")" = "$(stat -c %d -- "$(dirname -- "$OUTPUT")")" ]; then
@@ -147,7 +182,7 @@ else
 fi
 
 cleanup() {
-    rm -f -- "$METADATA_PART" "$HEAD_PART" "$GET_HEADERS_PART" "$STATE_PART"
+    rm -f -- "$METADATA_PART" "$HEAD_PART" "$GET_HEADERS_PART" "$STATE_PART" "$MIGRATION_PART"
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -192,6 +227,22 @@ except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error
 PY
 }
 
+# One-time migration from the former mutable cache filename. Never overwrite or
+# delete it: an interrupted migration leaves the reviewed source recoverable.
+for legacy_artifact in "$CACHE_DIR/ChatGPT.dmg" "$CACHE_DIR/ChatGPT-work.dmg"; do
+    if [ "$ALLOW_UNREVIEWED" -eq 0 ] && [ ! -e "$OUTPUT" ] && [ -f "$legacy_artifact" ]; then
+        if inspect_to_metadata "$legacy_artifact" && candidate_matches_reviewed_snapshot; then
+            cp -a --reflink=auto -- "$legacy_artifact" "$MIGRATION_PART"
+            chmod 0400 "$MIGRATION_PART"
+            mv -- "$MIGRATION_PART" "$OUTPUT"
+            mv -f -- "$METADATA_PART" "$METADATA"
+            printf 'Migrated reviewed artifact into immutable cache: %s\n' "$OUTPUT" >&2
+            exit 0
+        fi
+        rm -f -- "$METADATA_PART"
+    fi
+done
+
 if [ "$OFFLINE" -eq 1 ]; then
     [ -f "$OUTPUT" ] || die "offline DMG does not exist: $OUTPUT"
     inspect_to_metadata "$OUTPUT" "$HEADERS_FILE"
@@ -199,6 +250,21 @@ if [ "$OFFLINE" -eq 1 ]; then
     mv -f -- "$METADATA_PART" "$METADATA"
     printf 'Inspected offline artifact: %s\nMetadata: %s\n' "$OUTPUT" "$METADATA" >&2
     exit 0
+fi
+
+# A content-addressed reviewed artifact is sufficient to build even after the
+# mutable official URL advances. Reinspect the bytes on every reuse; network
+# metadata checks are deliberately a separate, explicit operation.
+if [ "$ALLOW_UNREVIEWED" -eq 0 ] && [ "$FORCE" -eq 0 ] && [ -f "$OUTPUT" ]; then
+    if inspect_to_metadata "$OUTPUT" && candidate_matches_reviewed_snapshot; then
+        mv -f -- "$METADATA_PART" "$METADATA"
+        rm -f -- "$DOWNLOAD_PART" "$STATE_FILE"
+        printf 'Reused immutable reviewed artifact: %s\nMetadata: %s\n' \
+            "$OUTPUT" "$METADATA" >&2
+        exit 0
+    fi
+    rm -f -- "$METADATA_PART"
+    die "immutable reviewed artifact failed verification: $OUTPUT"
 fi
 
 command -v "$CURL_BIN" >/dev/null 2>&1 || die "curl not found: $CURL_BIN"

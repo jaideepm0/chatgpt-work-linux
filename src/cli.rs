@@ -81,7 +81,7 @@ pub enum Command {
 
     /// Inspect a locally downloaded official DMG without executing it.
     InspectUpstream {
-        #[arg(default_value = "ChatGPT-work.dmg")]
+        #[arg(default_value = "ChatGPT.dmg")]
         dmg: PathBuf,
     },
 }

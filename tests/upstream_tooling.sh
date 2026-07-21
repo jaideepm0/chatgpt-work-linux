@@ -5,6 +5,7 @@ REPO_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd -P)"
 INSPECTOR="$REPO_DIR/scripts/inspect-upstream.py"
 FETCHER="$REPO_DIR/scripts/fetch-upstream.sh"
 CHECKER="$REPO_DIR/scripts/check-upstream.sh"
+REFRESHER="$REPO_DIR/scripts/refresh-upstream-snapshot.sh"
 OFFICIAL_URL="https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf -- "$TMP_DIR"' EXIT HUP INT TERM
@@ -28,7 +29,7 @@ root = Path(os.environ["FIXTURE_DIR"])
 plist = {
     "CFBundleDisplayName": "ChatGPT",
     "CFBundleExecutable": "ChatGPT",
-    "CFBundleIdentifier": "com.openai.chat",
+    "CFBundleIdentifier": "com.openai.codex",
     "CFBundleShortVersionString": "1.2026.160",
     "CFBundleSupportedPlatforms": ["MacOSX"],
     "CFBundleURLTypes": [
@@ -119,10 +120,22 @@ if [ "$mode" = "l" ]; then
         'Folder = +' \
         'Size = ' \
         ''
-    case "$(basename -- "$dmg")" in
-        electron.dmg)
+    case "$(basename -- "$dmg"):${FIXTURE_ELECTRON:-0}" in
+        electron.dmg:*|review-candidate.dmg:*|*:1)
             printf '%s\n' \
                 'Path = ChatGPT Installer/ChatGPT.app/Contents/Resources/app.asar' \
+                'Folder = -' \
+                'Size = 1' \
+                '' \
+                'Path = ChatGPT Installer/ChatGPT.app/Contents/Resources/plugins/openai-bundled/plugins/browser/.codex-plugin/plugin.json' \
+                'Folder = -' \
+                'Size = 1' \
+                '' \
+                'Path = ChatGPT Installer/ChatGPT.app/Contents/Resources/plugins/openai-bundled/plugins/chrome/.codex-plugin/plugin.json' \
+                'Folder = -' \
+                'Size = 1' \
+                '' \
+                'Path = ChatGPT Installer/ChatGPT.app/Contents/Resources/plugins/openai-bundled/plugins/computer-use/.codex-plugin/plugin.json' \
                 'Folder = -' \
                 'Size = 1' \
                 '' \
@@ -479,6 +492,147 @@ FIXTURE_DMG="$DMG" \
 [ "$(grep -c '^HEAD$' "$CURL_LOG" || true)" -eq "$heads_after_force" ] || \
     fail "metadata updater check ignored its rate-limit cache"
 
-git -C "$REPO_DIR" check-ignore -q ChatGPT-work.dmg || fail "ChatGPT-work.dmg is not gitignored"
+# Candidate refresh must be a two-phase transaction. Acquisition may update
+# only candidate paths; promotion requires exact human-reviewed identity and
+# publishes a content-addressed artifact without destroying the old snapshot.
+REVIEW_CACHE="$TMP_DIR/review-cache"
+REVIEWED_SNAPSHOT="$TMP_DIR/reviewed.json"
+REVIEW_CANDIDATE="$TMP_DIR/review-candidate.dmg"
+cp -- "$SNAPSHOT_ONE" "$REVIEWED_SNAPSHOT"
+cp -- "$DMG" "$REVIEW_CANDIDATE"
+cp -- "$REVIEWED_SNAPSHOT" "$TMP_DIR/reviewed.before"
+review_sha=$(sha256sum "$REVIEW_CANDIDATE" | awk '{print $1}')
+review_version=1.2026.160
+refresh_env=(
+    env
+    CHATGPT_WORK_CACHE_DIR="$REVIEW_CACHE"
+    CHATGPT_WORK_7Z="$FAKE_7Z"
+    FIXTURE_DIR="$FIXTURE_DIR"
+    FIXTURE_ELECTRON=1
+)
+"${refresh_env[@]}" "$REFRESHER" --offline --artifact "$REVIEW_CANDIDATE" \
+    --snapshot "$REVIEWED_SNAPSHOT" >/dev/null
+cmp -s "$REVIEWED_SNAPSHOT" "$TMP_DIR/reviewed.before" || \
+    fail "candidate acquisition changed the reviewed snapshot"
+[ ! -e "$REVIEW_CACHE/artifacts/$review_sha/ChatGPT.dmg" ] || \
+    fail "candidate acquisition prematurely published reviewed bytes"
+
+if "${refresh_env[@]}" "$REFRESHER" --promote --artifact "$REVIEW_CANDIDATE" \
+    --snapshot "$REVIEWED_SNAPSHOT" --expected-version "$review_version" \
+    --expected-sha256 "$review_sha" >/dev/null 2>&1; then
+    fail "candidate promotion succeeded without an isolated validation receipt"
+fi
+cmp -s "$REVIEWED_SNAPSHOT" "$TMP_DIR/reviewed.before" || \
+    fail "unvalidated promotion changed the reviewed snapshot"
+
+write_validation_receipt() {
+    local version=$1
+    python3 - "$REVIEW_CACHE/candidates/upstream-snapshot.candidate.json" \
+        "$REVIEW_CACHE/candidates/validation.json" "$version" "$review_sha" <<'PY'
+import hashlib
+import json
+import sys
+snapshot, receipt, version, digest = sys.argv[1:]
+snapshot_digest = hashlib.sha256(open(snapshot, "rb").read()).hexdigest()
+with open(receipt, "w", encoding="utf-8") as handle:
+    json.dump({
+        "schemaVersion": 1,
+        "status": "passed",
+        "version": version,
+        "sha256": digest,
+        "snapshotSha256": snapshot_digest,
+        "validations": [
+            "build", "doctor", "smoke-wayland",
+            "profile-runtime", "profile-runtime-constrained",
+        ],
+    }, handle)
+    handle.write("\n")
+PY
+}
+write_validation_receipt "$review_version"
+
+# Build/doctor/smoke alone is useful diagnostically but cannot authorize a
+# release promotion without both resource gates.
+python3 - "$REVIEW_CACHE/candidates/validation.json" <<'PY'
+import json
+import sys
+path = sys.argv[1]
+value = json.load(open(path, encoding="utf-8"))
+value["validations"] = ["build", "doctor", "smoke-wayland"]
+with open(path, "w", encoding="utf-8") as handle:
+    json.dump(value, handle)
+    handle.write("\n")
+PY
+if "${refresh_env[@]}" "$REFRESHER" --promote --artifact "$REVIEW_CANDIDATE" \
+    --snapshot "$REVIEWED_SNAPSHOT" --expected-version "$review_version" \
+    --expected-sha256 "$review_sha" >/dev/null 2>&1; then
+    fail "candidate promotion accepted a receipt without resource gates"
+fi
+cmp -s "$REVIEWED_SNAPSHOT" "$TMP_DIR/reviewed.before" || \
+    fail "incomplete release receipt changed the reviewed snapshot"
+write_validation_receipt "$review_version"
+
+if "${refresh_env[@]}" "$REFRESHER" --promote --artifact "$REVIEW_CANDIDATE" \
+    --snapshot "$REVIEWED_SNAPSHOT" --expected-version "$review_version" \
+    --expected-sha256 "$(printf '0%.0s' {1..64})" >/dev/null 2>&1; then
+    fail "candidate promotion accepted the wrong explicit digest"
+fi
+cmp -s "$REVIEWED_SNAPSHOT" "$TMP_DIR/reviewed.before" || \
+    fail "failed promotion changed the reviewed snapshot"
+
+"${refresh_env[@]}" "$REFRESHER" --promote --artifact "$REVIEW_CANDIDATE" \
+    --snapshot "$REVIEWED_SNAPSHOT" --expected-version "$review_version" \
+    --expected-sha256 "$review_sha" >/dev/null
+published="$REVIEW_CACHE/artifacts/$review_sha/ChatGPT.dmg"
+[ -f "$published" ] || fail "promotion did not publish the content-addressed artifact"
+cmp -s "$published" "$REVIEW_CANDIDATE" || fail "promoted artifact differs from candidate"
+python3 - "$REVIEWED_SNAPSHOT" "$review_sha" <<'PY'
+import json
+import sys
+value = json.load(open(sys.argv[1], encoding="utf-8"))
+assert value["application"]["implementation"] == "electron"
+assert value["application"]["bundle_identifier"] == "com.openai.codex"
+assert value["artifact"]["sha256"] == sys.argv[2]
+assert value["artifact"]["name"] == "ChatGPT.dmg"
+PY
+
+# A reviewed content-addressed artifact must remain buildable without touching
+# the mutable endpoint, even when that endpoint has already advanced.
+CHATGPT_WORK_CACHE_DIR="$REVIEW_CACHE" \
+CHATGPT_WORK_UPSTREAM_SNAPSHOT="$REVIEWED_SNAPSHOT" \
+CHATGPT_WORK_CURL="$FAIL_CURL" \
+CHATGPT_WORK_7Z="$FAKE_7Z" \
+FIXTURE_DIR="$FIXTURE_DIR" FIXTURE_ELECTRON=1 \
+    "$FETCHER" >/dev/null
+
+# Downgrades need a second explicit override in addition to version/digest
+# approval. Rejected downgrade attempts must leave the reviewed snapshot intact.
+cp -- "$REVIEWED_SNAPSHOT" "$TMP_DIR/promoted.before-downgrade"
+FIXTURE_DIR="$FIXTURE_DIR" python3 - <<'PY'
+import os
+from pathlib import Path
+import plistlib
+path = Path(os.environ["FIXTURE_DIR"]) / "Info.plist"
+value = plistlib.loads(path.read_bytes())
+value["CFBundleShortVersionString"] = "1.2026.159"
+path.write_bytes(plistlib.dumps(value, fmt=plistlib.FMT_BINARY))
+PY
+"${refresh_env[@]}" "$REFRESHER" --offline --artifact "$REVIEW_CANDIDATE" \
+    --snapshot "$REVIEWED_SNAPSHOT" >/dev/null
+write_validation_receipt 1.2026.159
+if "${refresh_env[@]}" "$REFRESHER" --promote --artifact "$REVIEW_CANDIDATE" \
+    --snapshot "$REVIEWED_SNAPSHOT" --expected-version 1.2026.159 \
+    --expected-sha256 "$review_sha" >/dev/null 2>&1; then
+    fail "candidate promotion accepted an unapproved downgrade"
+fi
+cmp -s "$REVIEWED_SNAPSHOT" "$TMP_DIR/promoted.before-downgrade" || \
+    fail "rejected downgrade changed the reviewed snapshot"
+
+# The orchestration command must never regain a trust-metadata refresh step.
+if rg -n '^[[:space:]]*make .*refresh-upstream|--allow-unreviewed' "$REPO_DIR/scripts/update-user.sh" >/dev/null; then
+    fail "update-user can promote unreviewed upstream metadata"
+fi
+
+git -C "$REPO_DIR" check-ignore -q ChatGPT.dmg || fail "ChatGPT.dmg is not gitignored"
 
 printf 'upstream_tooling: all tests passed\n'

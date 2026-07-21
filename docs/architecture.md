@@ -123,11 +123,25 @@ adaptation. Account and server flags still determine actual availability.
 
 ## Installation and recovery
 
+Reviewed DMGs are stored under their SHA-256. Unreviewed downloads and metadata
+remain in a separate candidate directory until an offline promotion names the
+exact expected version and digest. Promotion publishes immutable bytes first
+and switches the reviewed snapshot last, so interruption leaves either the old
+reviewed snapshot or a recoverable orphan cache entry—never a destroyed
+known-good input.
+
 User releases are content-addressed and immutable. Files and their manifest
 are verified before `current` is switched; `previous` retains the last release.
 Desktop metadata is published atomically. Failed fetch, build, patch,
 validation, or install never removes the active release. Profiles are preserved
 by default on uninstall.
+
+The isolated Electron profile has an explicit one-time continuity transaction.
+An existing `~/.config/Codex` profile is validated, copied without regenerable
+Chromium caches into a sibling stage, revalidated, and atomically published.
+A non-empty isolated target requires explicit replacement approval and is moved
+to a timestamped backup first. A local receipt makes later installs idempotent,
+so a newer isolated profile is never overwritten by ambient state.
 
 The former compatibility-only XDG Codex home can be recovered with the explicit
 history migration tool. It checks matching SQLx schemas, backs up the target
@@ -135,8 +149,10 @@ database under XDG state, copies only missing rollout files atomically, rewrites
 their paths, merges rows in one SQLite transaction, and verifies the resulting
 database. It never duplicates the established multi-gigabyte Codex store.
 
-Logs are bounded and operational diagnostics go to stderr/journald. Updates
-are explicit build/install transactions—there is no polling updater.
+Logs are bounded and operational diagnostics go to stderr/journald. Updates are
+explicit, serialized build/install transactions—there is no polling updater.
+Candidate acquisition, candidate approval, build publication, user
+installation, and rollback are distinct fail-closed phases.
 
 ## Upstream observation
 

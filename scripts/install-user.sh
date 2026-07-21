@@ -8,26 +8,43 @@ prefix=${CHATGPT_WORK_LINUX_USER_PREFIX:-"$HOME/.local"}
 [[ $prefix == /* && $prefix != / ]] || { printf 'unsafe user prefix: %s\n' "$prefix" >&2; exit 2; }
 case "/$prefix/" in *'/../'*|*'/./'*) printf 'unsafe user prefix: %s\n' "$prefix" >&2; exit 2;; esac
 
-[[ -x $build/start.sh && -x $build/chatgpt-work-linux-bin ]] || {
-  printf 'verified Work desktop build is missing; run make build first\n' >&2
-  exit 1
-}
-(cd "$build" && sha256sum --check --quiet --strict .codex-linux/SHA256SUMS)
-version=$(python3 - "$build/.codex-linux/build-info.json" <<'PY'
-import json
-import sys
-with open(sys.argv[1], encoding="utf-8") as handle:
-    print(json.load(handle)["upstreamDmg"]["appVersion"])
-PY
-)
-[[ $version =~ ^[0-9][0-9A-Za-z._+-]*$ ]] || { printf 'unsafe upstream version: %q\n' "$version" >&2; exit 1; }
-
 base="$prefix/opt/chatgpt-work-linux"
 versions="$base/versions"
 bin_dir="$prefix/bin"
 desktop_dir="$prefix/share/applications"
 icon_dir="$prefix/share/icons/hicolor/2048x2048/apps"
 metainfo_dir="$prefix/share/metainfo"
+mkdir -p -- "$prefix/opt" "$base" "$versions"
+chmod 0700 "$base" "$versions"
+exec {install_lock_fd}>"$prefix/opt/.chatgpt-work-linux.install.lock"
+flock "$install_lock_fd"
+
+[[ -x $build/start.sh && -x $build/chatgpt-work-linux-bin ]] || {
+  printf 'verified Work desktop build is missing; run make build first\n' >&2
+  exit 1
+}
+(cd "$build" && sha256sum --check --quiet --strict .codex-linux/SHA256SUMS)
+reviewed_snapshot=${CHATGPT_WORK_UPSTREAM_SNAPSHOT:-"$repo_root/docs/upstream-snapshot.json"}
+version=$(python3 - "$build/.codex-linux/build-info.json" "$reviewed_snapshot" <<'PY'
+import json
+import sys
+with open(sys.argv[1], encoding="utf-8") as handle:
+    build = json.load(handle)["upstreamDmg"]
+with open(sys.argv[2], encoding="utf-8") as handle:
+    snapshot = json.load(handle)
+expected = snapshot["artifact"]
+expected_version = snapshot["application"]["short_version"]
+if build.get("appVersion") != expected_version:
+    raise SystemExit("install-user: build version differs from the reviewed snapshot")
+if build.get("sha256") != expected.get("sha256"):
+    raise SystemExit("install-user: build DMG digest differs from the reviewed snapshot")
+if int(build.get("sizeBytes", -1)) != int(expected.get("size", -2)):
+    raise SystemExit("install-user: build DMG size differs from the reviewed snapshot")
+print(expected_version)
+PY
+)
+[[ $version =~ ^[0-9][0-9A-Za-z._+-]*$ ]] || { printf 'unsafe upstream version: %q\n' "$version" >&2; exit 1; }
+
 digest=$(sha256sum "$build/.codex-linux/SHA256SUMS" | awk '{print substr($1,1,16)}')
 release_id="$version-$digest"
 final="$versions/$release_id"
@@ -43,7 +60,7 @@ cleanup() {
     "$metainfo_dir/.io.github.chatgpt_work_linux.metainfo.xml-new-$$"
 }
 trap cleanup EXIT HUP INT TERM
-mkdir -p -- "$versions" "$bin_dir" "$desktop_dir" "$icon_dir" "$metainfo_dir"
+mkdir -p -- "$bin_dir" "$desktop_dir" "$icon_dir" "$metainfo_dir"
 chmod 0700 "$base" "$versions"
 
 verify_release() {
@@ -62,6 +79,13 @@ if [[ ! -e $final ]]; then
 elif ! verify_release "$final"; then
   printf 'existing immutable release failed verification: %s\n' "$final" >&2
   exit 1
+fi
+
+# Preserve the existing signed-in Electron identity only after the candidate
+# release and its full manifest have passed verification. Test/custom prefixes
+# never touch the user's real desktop profile.
+if [[ $prefix == "$HOME/.local" && ${CHATGPT_WORK_SKIP_ELECTRON_PROFILE_MIGRATION:-0} != 1 ]]; then
+  bash "$repo_root/scripts/migrate-electron-profile.sh"
 fi
 
 desktop-file-validate "$repo_root/packaging/linux/io.github.chatgpt_work_linux.desktop"

@@ -22,6 +22,7 @@ anchor='process.platform===`linux`&&codexLinuxPrewarmHotkeyWindow()'
 predicate='function ext(e){return e===`macOS`||e===`windows`}'
 availability='featureName:`computer_use`;g=rxt({areRequiredFeaturesEnabled:h,enabled:i,isAnyFeatureLoading:m,isComputerUseGateEnabled:s,isHostCompatiblePlatform:ext(o),isPlatformLoading:a,windowType:`electron`})'
 tray_start='(A||process.platform===`linux`)&&Ce()'
+safe_tray_start='(Z||process.platform===`linux`&&(typeof codexLinuxIsTrayEnabled!==`function`||codexLinuxIsTrayEnabled()))&&xy$()'
 tray_wait='if(typeof t.whenReady!=`function`)return process.platform!==`linux`;'
 tray_state='return typeof t.isReady==`function`?t.isReady():process.platform!==`linux`'
 setting_default='codexLinuxGetSetting=e=>process.platform!==`linux`||P.globalState.get(e)!==!1'
@@ -70,6 +71,14 @@ if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/app.asar" >/dev/n
   printf 'runtime_hardening: patcher accepted an already-patched input\n' >&2
   exit 1
 fi
+
+printf 'prefix%ssetting%smiddle%snext%safter%sready%sstates%ssuffix' \
+  "$setting_default" "$anchor" "$predicate" "$availability" "$safe_tray_start" "$tray_wait" "$tray_state" >"$temporary/safe-tray.asar"
+python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/safe-tray.asar"
+rg -Fq "$safe_tray_start" "$temporary/safe-tray.asar" || {
+  printf 'runtime_hardening: already settings-gated tray startup was not preserved\n' >&2
+  exit 1
+}
 
 printf '%s%s%s%s%s%s%s%s' "$setting_default" "$anchor" "$anchor" "$predicate" "$availability" "$tray_start" "$tray_wait" "$tray_state" >"$temporary/ambiguous.asar"
 if python3 "$repo_root/scripts/patch-work-asar.py" "$temporary/ambiguous.asar" >/dev/null 2>&1; then
