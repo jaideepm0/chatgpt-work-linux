@@ -187,7 +187,14 @@ the unbuilt lifecycle patch.
 The automated 768 MiB lane initially exposed an invalid measurement condition:
 Plasma re-scoped the mapped Wayland Electron tree out of the transient limited
 cgroup and into `app-io.github.chatgpt_work_linux-*.scope`. The profiler now
-checks every process's cgroup membership and fails closed on that migration.
-The earlier genuine 768 MiB OOM remains the release result; a new constrained
-profile requires a session/compositor lane that cannot migrate memory charges
-outside the test cgroup.
+validates that exact compositor-created destination, moves the complete tree
+back into the original runner scope, and rechecks containment. A clean candidate
+build of `26.715.61943` at source commit `5c14c27` remained contained but the
+kernel OOM-killed its warm run at exactly 768 MiB. Candidate promotion and local
+installation therefore remain blocked; the reviewed installation and its
+authenticated profile were not changed.
+
+Because a valid failure still invokes the kernel OOM killer and can produce a
+desktop low-memory notification, constrained profiling now requires explicit
+per-invocation consent and a host-available-memory preflight. Failure paths emit
+bounded cgroup counters and sanitized process memory roles before cleanup.

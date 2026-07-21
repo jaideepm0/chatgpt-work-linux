@@ -5,6 +5,7 @@ launcher=${1:-"$HOME/.local/bin/chatgpt-work-linux"}
 settle_seconds=${CHATGPT_WORK_PROFILE_SETTLE_SECONDS:-30}
 memory_max_mib=${CHATGPT_WORK_PROFILE_MEMORY_MAX_MIB:-0}
 memory_high_mib=${CHATGPT_WORK_PROFILE_MEMORY_HIGH_MIB:-0}
+allow_memory_pressure=${CHATGPT_WORK_PROFILE_ALLOW_MEMORY_PRESSURE:-0}
 [[ $launcher == /* ]] || launcher=$(realpath -- "$launcher")
 [[ -x $launcher ]] || { printf 'profile-runtime: launcher is not executable: %s\n' "$launcher" >&2; exit 2; }
 [[ ${XDG_SESSION_TYPE:-} == wayland && -n ${WAYLAND_DISPLAY:-} ]] || {
@@ -20,6 +21,12 @@ memory_high_mib=${CHATGPT_WORK_PROFILE_MEMORY_HIGH_MIB:-0}
   exit 2
 }
 if (( memory_max_mib > 0 )); then
+  [[ $allow_memory_pressure == 1 ]] || {
+    printf '%s\n' \
+      'profile-runtime: constrained profiling can invoke the kernel OOM killer.' \
+      'Re-run with CHATGPT_WORK_PROFILE_ALLOW_MEMORY_PRESSURE=1 only after saving work.' >&2
+    exit 2
+  }
   (( memory_high_mib > 0 && memory_high_mib < memory_max_mib )) || {
     printf 'profile-runtime: MemoryHigh must be positive and below MemoryMax\n' >&2
     exit 2
@@ -34,6 +41,17 @@ if (( memory_max_mib > 0 )); then
   }
   systemctl --user show-environment >/dev/null 2>&1 || {
     printf 'profile-runtime: a running systemd user manager is required for the constrained-memory lane\n' >&2
+    exit 2
+  }
+  host_available_mib=$(awk '/^MemAvailable:/ {print int($2 / 1024); exit}' /proc/meminfo)
+  min_host_available_mib=${CHATGPT_WORK_PROFILE_MIN_AVAILABLE_MIB:-$((memory_max_mib + 1024))}
+  [[ $min_host_available_mib =~ ^[1-9][0-9]*$ ]] || {
+    printf 'profile-runtime: minimum host-available memory must be a positive integer MiB value\n' >&2
+    exit 2
+  }
+  (( host_available_mib >= min_host_available_mib )) || {
+    printf 'profile-runtime: refusing memory-pressure run: available=%s MiB required=%s MiB\n' \
+      "$host_available_mib" "$min_host_available_mib" >&2
     exit 2
   }
 fi
@@ -183,6 +201,50 @@ for name in os.listdir("/proc"):
     if needle in command:
         print(name)
 PY
+}
+
+print_constrained_failure_diagnostics() {
+  local cgroup=${profile_scope_cgroup:-$profile_runner_scope_cgroup}
+  local cgroup_root pid comm role pss rss command
+  (( memory_max_mib > 0 )) || return 0
+  [[ -n $cgroup ]] || {
+    printf 'profile-runtime: constrained diagnostics unavailable: scope was not resolved\n' >&2
+    return 0
+  }
+  cgroup_root="/sys/fs/cgroup$cgroup"
+  [[ -d $cgroup_root ]] || {
+    printf 'profile-runtime: constrained diagnostics unavailable: scope has already closed\n' >&2
+    return 0
+  }
+
+  printf 'profile-runtime: constrained failure diagnostics (%s):\n' "$cgroup" >&2
+  for metric in memory.current memory.peak memory.swap.current memory.events memory.pressure; do
+    [[ -r $cgroup_root/$metric ]] || continue
+    printf '  %s:\n' "$metric" >&2
+    sed -n '1,20{s/^/    /;p}' "$cgroup_root/$metric" >&2 || true
+  done
+  for pid in $(profile_related_pids | sort -un); do
+    [[ -r /proc/$pid/status ]] || continue
+    comm=$(<"/proc/$pid/comm")
+    command=$(tr '\0' ' ' <"/proc/$pid/cmdline" 2>/dev/null || true)
+    case $command in
+      *--type=renderer*) role=renderer ;;
+      *--type=gpu-process*) role=gpu ;;
+      *--type=utility*) role=utility ;;
+      *' app-server '*) role=app-server ;;
+      *) role=main-or-helper ;;
+    esac
+    pss=$(awk '/^Pss:/ {print $2; exit}' "/proc/$pid/smaps_rollup" 2>/dev/null || printf 0)
+    rss=$(awk '/^VmRSS:/ {print $2; exit}' "/proc/$pid/status" 2>/dev/null || printf 0)
+    printf '  pid=%s role=%s comm=%q pss_kib=%s rss_kib=%s\n' \
+      "$pid" "$role" "$comm" "${pss:-0}" "${rss:-0}" >&2
+  done
+}
+
+profile_failure() {
+  printf 'profile-runtime: %s\n' "$*" >&2
+  print_constrained_failure_diagnostics
+  exit 1
 }
 
 constrained_tree_is_contained() {
@@ -358,8 +420,7 @@ for sample_index in {1..180}; do
   electron_pid=$(cat "$pid_file" 2>/dev/null || true)
   if [[ $electron_pid =~ ^[1-9][0-9]*$ ]] && kill -0 "$electron_pid" 2>/dev/null; then
     resolve_constrained_measurement_scope "$electron_pid" || {
-      printf 'profile-runtime: could not constrain the actual Electron scope\n' >&2
-      exit 1
+      profile_failure 'could not constrain the actual Electron scope'
     }
     if (( sample_index % 4 == 0 )); then
       read -r current_pss _ _ < <(memory_kib "$electron_pid")
@@ -377,8 +438,7 @@ done
 if [[ $ready -ne 1 ]]; then
   tail -n 120 "$temporary/launcher.out" >&2 || true
   [[ -z ${log_file:-} ]] || tail -n 120 "$log_file" >&2 || true
-  printf 'profile-runtime: application did not become ready\n' >&2
-  exit 1
+  profile_failure 'application did not become ready'
 fi
 ready_ns=$(date +%s%N)
 constrained_tree_is_contained "$electron_pid" || {
@@ -410,8 +470,7 @@ for sample_index in {1..180}; do
   electron_pid=$(cat "$pid_file" 2>/dev/null || true)
   if [[ $electron_pid =~ ^[1-9][0-9]*$ ]] && kill -0 "$electron_pid" 2>/dev/null; then
     resolve_constrained_measurement_scope "$electron_pid" || {
-      printf 'profile-runtime: could not constrain the actual Electron scope\n' >&2
-      exit 1
+      profile_failure 'could not constrain the actual Electron scope'
     }
     if (( sample_index % 4 == 0 )); then
       read -r current_pss _ _ < <(memory_kib "$electron_pid")
@@ -428,8 +487,7 @@ done
 if [[ $ready -ne 1 ]]; then
   tail -n 120 "$temporary/launcher.out" >&2 || true
   tail -n 120 "$log_file" >&2 || true
-  printf 'profile-runtime: warm application launch did not become ready\n' >&2
-  exit 1
+  profile_failure 'warm application launch did not become ready'
 fi
 ready_ns=$(date +%s%N)
 constrained_tree_is_contained "$electron_pid" || {
@@ -483,8 +541,7 @@ fi
 settle_samples=$settle_seconds
 for ((sample = 0; sample < settle_samples; sample++)); do
   kill -0 "$electron_pid" 2>/dev/null || {
-    printf 'profile-runtime: Electron exited while settling\n' >&2
-    exit 1
+    profile_failure 'Electron exited while settling'
   }
   read -r current_pss _ _ < <(memory_kib "$electron_pid")
   (( current_pss > peak_pss )) && peak_pss=$current_pss
@@ -554,6 +611,7 @@ if (( memory_max_mib > 0 )); then
   (( oom_events == 0 && oom_kill_events == 0 )) || {
     printf 'profile-runtime: constrained run encountered OOM events (oom=%s oom_kill=%s)\n' \
       "$oom_events" "$oom_kill_events" >&2
+    print_constrained_failure_diagnostics
     exit 1
   }
 fi

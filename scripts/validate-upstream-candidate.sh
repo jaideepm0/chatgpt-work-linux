@@ -8,18 +8,32 @@ candidate_dmg="${CHATGPT_WORK_CANDIDATE_DMG_PATH:-$cache_dir/candidates/ChatGPT.
 candidate_snapshot="${CHATGPT_WORK_CANDIDATE_SNAPSHOT:-$cache_dir/candidates/upstream-snapshot.candidate.json}"
 receipt="${CHATGPT_WORK_CANDIDATE_VALIDATION_RECEIPT:-$cache_dir/candidates/validation.json}"
 release_gates=1
+allow_memory_pressure=${CHATGPT_WORK_PROFILE_ALLOW_MEMORY_PRESSURE:-0}
 
 while [[ $# -gt 0 ]]; do
   case $1 in
     --release-gates) release_gates=1 ;;
     --skip-release-gates) release_gates=0 ;;
+    --allow-memory-pressure) allow_memory_pressure=1 ;;
     -h|--help)
-      printf '%s\n' 'Usage: scripts/validate-upstream-candidate.sh [--release-gates|--skip-release-gates]'
+      printf '%s\n' \
+        'Usage: scripts/validate-upstream-candidate.sh [--release-gates|--skip-release-gates] [--allow-memory-pressure]'
       exit 0 ;;
     *) printf 'validate-upstream-candidate: unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
   shift
 done
+
+[[ $allow_memory_pressure == 0 || $allow_memory_pressure == 1 ]] || {
+  printf 'validate-upstream-candidate: memory-pressure consent must be 0 or 1\n' >&2
+  exit 2
+}
+if [[ $release_gates -eq 1 && $allow_memory_pressure -ne 1 ]]; then
+  printf '%s\n' \
+    'validate-upstream-candidate: release gates include a kernel OOM stress test.' \
+    'Re-run with --allow-memory-pressure only after saving other desktop work.' >&2
+  exit 2
+fi
 
 [[ -f $candidate_dmg && -f $candidate_snapshot ]] || {
   printf 'validate-upstream-candidate: acquire a candidate with make refresh-upstream first\n' >&2
@@ -74,6 +88,7 @@ if [[ $release_gates -eq 1 ]]; then
   CHATGPT_WORK_PROFILE_SEED_CODEX_HOME=/nonexistent \
     CHATGPT_WORK_PROFILE_SEED_STATE=/nonexistent \
     CHATGPT_WORK_PROFILE_SEED_CONFIG=/nonexistent \
+    CHATGPT_WORK_PROFILE_ALLOW_MEMORY_PRESSURE=1 \
     CHATGPT_WORK_PROFILE_MEMORY_HIGH_MIB=704 \
     CHATGPT_WORK_PROFILE_MEMORY_MAX_MIB=768 \
     bash "$repo_root/scripts/profile-runtime.sh" "$output/start.sh"

@@ -20,10 +20,15 @@ executed, and macOS code-signature verification is not claimed on Linux.
 3. Review the candidate snapshot, hash, version, application identity, plugin
    inventory, adapter drift, and upstream provenance outside the promotion
    command.
-4. Run `make validate-upstream-candidate`. It creates a promotable receipt only
-   after an isolated exact build, manifest verification, doctor, Wayland smoke,
-   and both performance lanes. `--skip-release-gates` is diagnostic only; its
-   incomplete receipt cannot authorize promotion.
+4. After saving other desktop work, run
+   `CHATGPT_WORK_PROFILE_ALLOW_MEMORY_PRESSURE=1 make validate-upstream-candidate`.
+   It creates a promotable receipt only after an isolated exact build, manifest
+   verification, doctor, Wayland smoke, and both performance lanes. The explicit
+   consent is required because a failing 768 MiB cgroup gate invokes the kernel
+   OOM killer and may generate a desktop notification. The profiler first
+   requires at least the limit plus 1 GiB of host-available memory and emits
+   bounded cgroup diagnostics on failure. `--skip-release-gates` is diagnostic
+   only; its incomplete receipt cannot authorize promotion.
 5. Promote offline with both `--expected-version` and `--expected-sha256`.
    Downgrades additionally require `--allow-downgrade`. Promotion stores the DMG
    under `upstream/artifacts/<sha256>/`, requires the matching validation receipt,
@@ -32,7 +37,8 @@ executed, and macOS code-signature verification is not claimed on Linux.
 6. Commit and review the snapshot change. `make update-user` then runs repository
    checks, an exact build, doctor, Wayland smoke validation, immutable user
    installation, installed doctor, and Computer Use doctor. Release candidates
-   use `scripts/update-user.sh --release-gates` to add both performance lanes.
+   use `scripts/update-user.sh --release-gates --allow-memory-pressure` to add
+   both performance lanes.
 7. `make rollback-user` verifies both installed manifests and doctors before
    atomically exchanging `current` and `previous`.
 

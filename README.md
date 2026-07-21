@@ -146,7 +146,8 @@ make uninstall-user
 make check-update
 make refresh-upstream
 # Review the candidate snapshot, DMG provenance, adapter drift, and patch report.
-make validate-upstream-candidate
+# This release gate can deliberately trigger a cgroup OOM; save desktop work first.
+CHATGPT_WORK_PROFILE_ALLOW_MEMORY_PRESSURE=1 make validate-upstream-candidate
 ./scripts/refresh-upstream-snapshot.sh --promote \
   --expected-version VERSION \
   --expected-sha256 SHA256
@@ -169,6 +170,13 @@ close-to-tray quit handling, settings persistence, single-instance locking,
 and warm-start launch actions are mandatory too.
 Build reports are stored under `.work/reports/<version>/` and are ignored by
 Git.
+
+The constrained 768 MiB profile is never implicit. Direct invocations require
+`CHATGPT_WORK_PROFILE_ALLOW_MEMORY_PRESSURE=1`; update transactions require
+`scripts/update-user.sh --release-gates --allow-memory-pressure`. The profiler
+also refuses to start unless the host has at least the limit plus 1 GiB
+available. A failing gate may generate a desktop kernel-OOM notification even
+though only the isolated profiling scope is killed.
 
 The user install can be swapped back to its verified previous release with
 `make rollback-user`. Immutable upstream caches are retained for recovery;

@@ -8,6 +8,19 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
+pressure_output="$temporary/memory-pressure-consent.out"
+if XDG_SESSION_TYPE=wayland WAYLAND_DISPLAY=wayland-test \
+  CHATGPT_WORK_PROFILE_MEMORY_HIGH_MIB=704 \
+  CHATGPT_WORK_PROFILE_MEMORY_MAX_MIB=768 \
+  bash "$repo_root/scripts/profile-runtime.sh" /bin/true >"$pressure_output" 2>&1; then
+  printf 'runtime_hardening: constrained profiler ran without explicit OOM consent\n' >&2
+  exit 1
+fi
+rg -Fq 'CHATGPT_WORK_PROFILE_ALLOW_MEMORY_PRESSURE=1' "$pressure_output" || {
+  printf 'runtime_hardening: constrained profiler did not explain its OOM consent gate\n' >&2
+  exit 1
+}
+
 if rg -Fq 'rm -rf -- "$stage/resources/node-runtime/lib/node_modules"' \
     "$repo_root/scripts/build-work-app.sh"; then
   printf 'runtime_hardening: build removes the managed CLI install/repair toolchain\n' >&2

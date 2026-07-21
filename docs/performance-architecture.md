@@ -35,13 +35,14 @@ shared mappings rather than counting every shared page once per process; this
 matches the kernel's `/proc` definition. The profiler now reports PSS and RSS
 per process, samples startup peaks, and records generated size.
 
-The 768 MiB cgroup lane also has a desktop-integration hazard. Plasma moves the
-mapped Wayland application from the transient profiling scope into a sibling
+The 768 MiB cgroup lane also has a desktop-integration hazard. Plasma can move
+the mapped Wayland application from the transient profiling scope into a sibling
 `app-io.github.chatgpt_work_linux-*.scope`. Memory charges do not move with a
-process after cgroup migration, so adding the two scopes would not reconstruct
-a valid constrained run. The profiler detects every escaped PID and fails the
-measurement. This must be solved with a compositor/session test lane that owns
-the application cgroup from process creation; it must not be hidden as a pass.
+process after cgroup migration, so adding two separately capped scopes would not
+reconstruct a valid constrained run. The profiler now validates the exact
+Plasma-created scope, moves the complete process tree back into the original
+runner scope, and rechecks containment. The latest candidate remained contained
+but was genuinely OOM-killed at the 768 MiB peak, so the gate still fails.
 
 ## Architecture
 
@@ -67,8 +68,16 @@ the application cgroup from process creation; it must not be hidden as a pass.
    uses no ambient profile, plugin, history, or settings state and
    must additionally apply cgroup `memory.high`/`memory.max`, verify every PID
    remains below that cgroup, record `memory.events`/peak and PSI, and treat OOM
-   or cgroup escape as failure. The current host fails containment, so it cannot
-   yet produce that release measurement.
+   or cgroup escape as failure. The latest candidate produced a valid contained
+   measurement but hit the exact 768 MiB maximum, so it has no release receipt.
+
+The constrained lane requires explicit per-invocation consent because an
+expected release failure still exercises the kernel OOM killer and desktop
+environments may surface that isolated event as a system-low-memory warning.
+Before creating the cgroup, the profiler requires host-available memory greater
+than the configured limit by at least 1 GiB. On failure it records only bounded
+cgroup counters and sanitized process roles/memory totals; it does not dump
+command arguments, profile contents, or authentication state.
 
 This follows Electron's own guidance to measure first, avoid loading and work
 too early, keep main-process I/O asynchronous, and pause expensive work for
