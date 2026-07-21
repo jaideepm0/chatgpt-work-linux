@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := build
 
-.PHONY: build check check-update clean doctor ensure-build install-user migrate-codex-history migrate-electron-profile profile-runtime profile-runtime-constrained prune-upstream-cache refresh-upstream rollback-user run smoke-wayland test uninstall-user update-user validate-upstream-candidate
+.PHONY: build check check-update clean doctor ensure-build install-user migrate-codex-history migrate-electron-profile profile-runtime profile-runtime-constrained prune-upstream-cache refresh-private-computer-use refresh-upstream rollback-user run smoke-wayland test uninstall-user update-user validate-upstream-candidate
 
 build:
 	bash scripts/fetch-upstream.sh
@@ -55,6 +55,9 @@ check:
 
 refresh-upstream:
 	bash scripts/refresh-upstream-snapshot.sh
+
+refresh-private-computer-use:
+	bash scripts/refresh-private-computer-use.sh
 
 validate-upstream-candidate:
 	bash scripts/validate-upstream-candidate.sh

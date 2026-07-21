@@ -125,6 +125,13 @@ immutable release under `~/.local/opt/chatgpt-work-linux`, switches `current`
 only after verification, and retains one previous release for rollback. Tray
 and warm start require explicit opt-in; an absent setting remains disabled.
 
+While the private Computer Use preview is under development, an already
+verified local installation can be refreshed without accepting a newly drifted
+DMG by running `make refresh-private-computer-use`. The transaction verifies
+the installed checksum manifest, rebuilds and handshakes the pinned private MCP,
+stages the replacement, and republishes the local build atomically; follow it
+with `make install-user`.
+
 The first normal user install transactionally copies an existing
 `~/.config/Codex` Electron identity into the required isolated profile, while
 excluding disposable Chromium caches. It never replaces a non-empty target
