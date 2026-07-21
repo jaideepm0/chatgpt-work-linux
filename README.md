@@ -72,6 +72,13 @@ The downloader rejects non-HTTPS redirects, unexpected hosts, artifacts at or
 below 500 MiB, size drift, hash drift, and invalid DMGs. The complete observed
 metadata is in [docs/upstream-snapshot.json](docs/upstream-snapshot.json).
 
+Release status: **not currently promotable for production rollout**. The newer
+`26.715.70719` candidate remains diagnostic-only after exceeding the 768 MiB
+peak-memory budget and presenting a white pre-mount window during visible QA.
+The runtime gates now require renderer routes to mount rather than accepting an
+empty Electron `ready-to-show` window. See the validation evidence for the
+exact passed and blocked gates.
+
 ## Requirements
 
 - x86_64 Linux with a Wayland session and working user namespaces
@@ -80,6 +87,7 @@ metadata is in [docs/upstream-snapshot.json](docs/upstream-snapshot.json).
 - build tools required by the pinned external Linux compatibility adapter
 - `curl`, Python 3, Node.js, Rust/Cargo, 7-Zip, `desktop-file-utils`, and
   `appstreamcli`
+
 The adapter is fetched over HTTPS into the private XDG cache and archived by
 exact Git commit and reviewed archive hash. Normal builds never inspect or use
 `~/programs/codex-desktop-linux` (or any other working checkout). Tests and

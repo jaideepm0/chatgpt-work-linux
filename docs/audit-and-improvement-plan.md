@@ -72,7 +72,7 @@ Date: 2026-07-17
 3. Every required adapter patch and repository hardening invariant must pass;
    optional skips must be reviewed rather than hidden.
 4. Confirm one main window at startup, one live process tree after warm
-   handoff, a ready native tray, `app://` renderer origin,
+   handoff, renderer routes mounted (not only `ready-to-show`), a ready native tray, `app://` renderer origin,
    `app.isPackaged=true`, sandboxed renderer, Wayland Ozone, app-server
    handshake, and absence of a localhost asset server.
 5. Exercise sign-in, offline recovery, external URLs, upload/download,
@@ -93,3 +93,12 @@ Date: 2026-07-17
 5. Produce native package formats only after they install this verified
    Electron build; never expose the retained historical Rust wrapper through a
    release/package target.
+6. Add a genuinely hidden Wayland compositor/CI lane with pixel-level
+   non-blank assertions. Until then, visible GUI validation requires explicit
+   coordination with the desktop user.
+7. Define a signed source-release and rollout process for a 100,000-install
+   population. Releases may distribute only this repository's source tooling
+   and reviewed metadata; every user must fetch the official `ChatGPT.dmg`
+   directly and build locally. Use staged cohorts, telemetry-free local
+   receipts, rollback thresholds, and the existing randomized metadata-check
+   jitter/backoff rather than a synchronized fleet update.

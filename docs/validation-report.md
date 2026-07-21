@@ -1,8 +1,34 @@
 # Validation report
 
-Date: 2026-07-17
+Last updated: 2026-07-22
 
 Host: Arch Linux x86_64, KDE Plasma/KWin, Wayland
+
+## Current release decision
+
+**Not promotable and not ready for production rollout.** The immutable reviewed
+installation remains ChatGPT `26.715.21425`. The exact official URL currently
+served candidate `26.715.70719` (bundle `5650`, 618,776,575 bytes, SHA-256
+`95c66f30ad0ee946cfec2b83c50e68744700be5da76898c5de484a755000f4a3`).
+That candidate has a `diagnostic-only` receipt and has not replaced the reviewed
+snapshot or authenticated user installation.
+
+The candidate passed deterministic build, complete-manifest verification,
+doctor, packaged `app://`, sandboxed Wayland renderer, app-server handshake,
+Computer Use MCP, tray registration, warm handoff, eight-way real-install
+serialization, corruption rejection, profile-preserving uninstall, explicit
+purge, and clean reinstall tests. A manual observation nevertheless showed an
+all-white window before renderer content became usable. The former smoke gate
+accepted Electron `ready-to-show`, which was too early. Commit `2d4aa45` now
+requires the renderer's own `app routes mounted` signal in both smoke and
+profiling. This stronger GUI gate has not yet been rerun because it opens a
+window on the user's compositor; the hidden-workspace backend was unavailable.
+
+The latest sterile unconstrained candidate profile before that observation
+settled at 694.2 MiB PSS with an 818.0 MiB sampled peak across nine processes.
+That is an improvement over the signed-in reviewed build but remains above the
+768 MiB peak release budget. The constrained lane was not rerun after an earlier
+valid cgroup OOM because it now requires explicit per-run user consent.
 
 ## Verified input and adapter
 
@@ -99,7 +125,7 @@ The isolated Wayland smoke test passed and observed:
 - one sandboxed renderer with `--enable-sandbox` and `app://` origin;
 - no sandbox-disable arguments and no local HTTP asset-server process;
 - `packaged=true platform=linux` in application diagnostics;
-- successful app-server handshake and primary-frame readiness;
+- successful app-server handshake and packaged-renderer route mounting;
 - successful Computer Use MCP initialize and `tools/list` handshake with
   pointer, keyboard, text, screenshot, accessibility, and window tools;
 - Computer Use doctor selecting `portal` for input and screenshot, `kwin` for
@@ -116,7 +142,9 @@ requests, projects, and the native task composer. The Computer Use plugin now
 renders as available without the `Unavailable in this context` label. A portal
 text-input probe and a portal key chord both completed successfully. The final
 backend adds last-moment target-focus revalidation after a focus-race was
-observed during testing. The blank overlay did not reappear.
+observed during testing. At the time of that historical run the blank overlay
+did not reappear; the July 22 candidate observation above supersedes that
+statement for the current release decision.
 
 Local Codex history validation used a consistent database and Electron-profile
 clone. The former launcher had split history into 884 canonical threads and 4
@@ -198,3 +226,27 @@ Because a valid failure still invokes the kernel OOM killer and can produce a
 desktop low-memory notification, constrained profiling now requires explicit
 per-invocation consent and a host-available-memory preflight. Failure paths emit
 bounded cgroup counters and sanitized process memory roles before cleanup.
+
+## 2026-07-22 transaction and supply-chain audit
+
+- Normal builds no longer inspect `~/programs/codex-desktop-linux`. The
+  compatibility adapter is fetched into a private XDG cache from its pinned
+  HTTPS remote, accepted only at commit
+  `b24e5ff2cfabbd1a366f711229b3b115aa4397fe`, and bound to reviewed archive and
+  full-tree hashes. A local adapter checkout is an explicit test/development
+  override and must be clean.
+- Native-module installation now uses the adapter's committed lockfile with
+  `npm ci`; Electron 42.3.0 x86_64/arm64 archives are verified against pinned
+  SHA-256 values before extraction.
+- Existing-release verification and rollback now return explicitly on every
+  manifest or doctor failure. Stress injection found that Bash's conditional
+  function semantics could previously mask a failed SHA check; commit
+  `d2adbda` fixes and regression-tests that fail-open path.
+- Upstream metadata checks use persistent randomized jitter and exponential
+  failure backoff, avoiding synchronized checks across a large installation
+  population. Full download/build/install remains an explicit transaction.
+- Source packaging paths for the historical Rust/WebKit public-web client now
+  fail closed instead of producing a different product.
+- All source/static/unit/updater/migration/hardening checks pass. Candidate
+  promotion remains blocked on the stronger visible renderer gate, the
+  768 MiB resource gate, and entitled-account interaction coverage.
