@@ -29,8 +29,8 @@ previous="$base/$previous_target"
 verify_release() {
   local release=$1
   [[ -x $release/start.sh && -x $release/chatgpt-work-linux-bin ]] || return 1
-  (cd "$release" && sha256sum --check --quiet --strict .codex-linux/SHA256SUMS)
-  "$release/start.sh" doctor --json >/dev/null
+  (cd "$release" && sha256sum --check --quiet --strict .codex-linux/SHA256SUMS) || return 1
+  "$release/start.sh" doctor --json >/dev/null || return 1
 }
 verify_release "$current" || { printf 'current release failed verification\n' >&2; exit 1; }
 verify_release "$previous" || { printf 'previous release failed verification\n' >&2; exit 1; }

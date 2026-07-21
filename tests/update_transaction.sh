@@ -119,11 +119,36 @@ base="$prefix/opt/chatgpt-work-linux"
 current_a=$(readlink "$base/current")
 [[ $current_a == versions/* && -d $base/$current_a ]] || fail 'first install did not publish current'
 
+# Bash disables errexit inside a function used by `if`/`!`. Every verification
+# operation must therefore return explicitly: a later successful doctor must
+# never mask a failed manifest check of an existing immutable release.
+chmod u+w "$base/$current_a/start.sh"
+printf '# installed-release corruption\n' >>"$base/$current_a/start.sh"
+if install_fixture "$build_a" >/dev/null 2>&1; then
+  fail 'installer accepted a corrupted existing immutable release'
+fi
+[[ $(readlink "$base/current") == "$current_a" ]] ||
+  fail 'corrupted-release rejection changed current'
+cp -- "$build_a/start.sh" "$base/$current_a/start.sh"
+chmod a-w "$base/$current_a/start.sh"
+(cd "$base/$current_a" && sha256sum --check --quiet --strict .codex-linux/SHA256SUMS) ||
+  fail 'restored first release did not match its manifest'
+
 install_fixture "$build_b"
 current_b=$(readlink "$base/current")
 previous_b=$(readlink "$base/previous")
 [[ $current_b != "$current_a" && $previous_b == "$current_a" ]] || \
   fail 'second install did not retain the previous release'
+
+chmod u+w "$base/$previous_b/start.sh"
+printf '# rollback-target corruption\n' >>"$base/$previous_b/start.sh"
+if CHATGPT_WORK_LINUX_USER_PREFIX="$prefix" "$repo_root/scripts/rollback-user.sh" >/dev/null 2>&1; then
+  fail 'rollback accepted a corrupted previous release'
+fi
+[[ $(readlink "$base/current") == "$current_b" && $(readlink "$base/previous") == "$previous_b" ]] ||
+  fail 'rejected rollback changed a managed release link'
+cp -- "$build_a/start.sh" "$base/$previous_b/start.sh"
+chmod a-w "$base/$previous_b/start.sh"
 
 CHATGPT_WORK_LINUX_USER_PREFIX="$prefix" "$repo_root/scripts/rollback-user.sh" >/dev/null
 [[ $(readlink "$base/current") == "$current_a" ]] || fail 'rollback did not restore previous'

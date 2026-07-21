@@ -75,8 +75,8 @@ chmod 0700 "$base" "$versions"
 verify_release() {
   local release=$1
   [[ -x $release/start.sh && -x $release/chatgpt-work-linux-bin ]] || return 1
-  (cd "$release" && sha256sum --check --quiet --strict .codex-linux/SHA256SUMS)
-  "$release/start.sh" doctor --json >/dev/null
+  (cd "$release" && sha256sum --check --quiet --strict .codex-linux/SHA256SUMS) || return 1
+  "$release/start.sh" doctor --json >/dev/null || return 1
 }
 
 if [[ ! -e $final ]]; then
