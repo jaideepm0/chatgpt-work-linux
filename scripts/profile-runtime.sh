@@ -427,7 +427,8 @@ for sample_index in {1..180}; do
       (( current_pss > peak_pss )) && peak_pss=$current_pss
     fi
     log_file="$temporary/cache/chatgpt-work-linux/launcher.log"
-    if [[ -f $log_file ]] && rg -q 'window ready-to-show appearance=primary' "$log_file"; then
+    if [[ -f $log_file ]] &&
+      rg -q '\[startup\]\[renderer\] app routes mounted' "$log_file"; then
       ready=1
       break
     fi
@@ -438,7 +439,7 @@ done
 if [[ $ready -ne 1 ]]; then
   tail -n 120 "$temporary/launcher.out" >&2 || true
   [[ -z ${log_file:-} ]] || tail -n 120 "$log_file" >&2 || true
-  profile_failure 'application did not become ready'
+  profile_failure 'packaged renderer routes did not mount'
 fi
 ready_ns=$(date +%s%N)
 constrained_tree_is_contained "$electron_pid" || {
@@ -476,7 +477,8 @@ for sample_index in {1..180}; do
       read -r current_pss _ _ < <(memory_kib "$electron_pid")
       (( current_pss > peak_pss )) && peak_pss=$current_pss
     fi
-    if [[ -f $log_file ]] && rg -q 'window ready-to-show appearance=primary' "$log_file"; then
+    if [[ -f $log_file ]] &&
+      rg -q '\[startup\]\[renderer\] app routes mounted' "$log_file"; then
       ready=1
       break
     fi
@@ -487,7 +489,7 @@ done
 if [[ $ready -ne 1 ]]; then
   tail -n 120 "$temporary/launcher.out" >&2 || true
   tail -n 120 "$log_file" >&2 || true
-  profile_failure 'warm application launch did not become ready'
+  profile_failure 'warm packaged renderer routes did not mount'
 fi
 ready_ns=$(date +%s%N)
 constrained_tree_is_contained "$electron_pid" || {

@@ -39,6 +39,13 @@ rg -Fq 'CHATGPT_WORK_PROFILE_ALLOW_MEMORY_PRESSURE=1' "$pressure_output" || {
   exit 1
 }
 
+for runtime_gate in "$repo_root/scripts/smoke-wayland.sh" "$repo_root/scripts/profile-runtime.sh"; do
+  rg -Fq '\[startup\]\[renderer\] app routes mounted' "$runtime_gate" || {
+    printf 'runtime_hardening: %s accepts a blank ready-to-show window\n' "$runtime_gate" >&2
+    exit 1
+  }
+done
+
 if rg -Fq 'rm -rf -- "$stage/resources/node-runtime/lib/node_modules"' \
     "$repo_root/scripts/build-work-app.sh"; then
   printf 'runtime_hardening: build removes the managed CLI install/repair toolchain\n' >&2
