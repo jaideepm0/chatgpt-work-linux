@@ -16,8 +16,8 @@ entry visibly labeled as unofficial and not endorsed by OpenAI.
 
 - The production runtime is the portable application plane extracted locally
   from the exact allowlisted official unified `ChatGPT.dmg`, adapted to a
-  verified Linux Electron runtime. The Rust/GTK/WebKitGTK code is historical
-  and is not the default build, installation, or packaging target.
+  verified Linux Electron runtime. The obsolete Rust/GTK/WebKitGTK public-web
+  client has been removed and must not be reintroduced as a fallback.
 - Accept upstream input only from
   `https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg`. Require HTTPS
   verification, the exact DMG content type, a greater-than-500-MiB size floor,
@@ -106,8 +106,9 @@ entry visibly labeled as unofficial and not endorsed by OpenAI.
 - `scripts/smoke-wayland.sh` / `scripts/profile-runtime.sh` /
   `tests/runtime_hardening.sh`: production runtime, performance, and generated
   launcher security gates.
-- `src/`: historical Rust/GTK public-web client; do not substitute it for the
-  production desktop target.
+- `computer-use-linux/`: reviewed, source-controlled Linux Computer Use MCP
+  backend; keep its upstream provenance, license, lockfile, portal-only Wayland
+  policy, and focus-revalidation tests intact.
 - `packaging/`: desktop/AppStream metadata and source-only packaging material;
   never include generated proprietary payloads.
 - `docs/`: architecture decisions, artifact/adapter audits, current snapshot,

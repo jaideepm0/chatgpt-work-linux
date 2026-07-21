@@ -1,7 +1,7 @@
 SHELL := /usr/bin/env bash
 .DEFAULT_GOAL := build
 
-.PHONY: build check check-update clean doctor ensure-build install-user migrate-codex-history migrate-electron-profile profile-runtime profile-runtime-constrained prune-upstream-cache refresh-upstream rollback-user run sbom smoke-wayland test uninstall-user update-user validate-upstream-candidate
+.PHONY: build check check-update clean doctor ensure-build install-user migrate-codex-history migrate-electron-profile profile-runtime profile-runtime-constrained prune-upstream-cache refresh-upstream rollback-user run smoke-wayland test uninstall-user update-user validate-upstream-candidate
 
 build:
 	bash scripts/fetch-upstream.sh
@@ -36,7 +36,6 @@ profile-runtime-constrained: ensure-build
 		bash scripts/profile-runtime.sh ./.work/chatgpt-work-app/start.sh
 
 test:
-	env PATH=/usr/bin:/bin cargo test --locked
 	bash tests/upstream_tooling.sh
 	bash tests/update_transaction.sh
 	bash tests/electron_profile_migration.sh
@@ -46,20 +45,12 @@ test:
 
 check:
 	shellcheck -x -e SC2016 scripts/*.sh tests/*.sh tests/fixtures/*.sh
-	env PATH=/usr/bin:/bin cargo fmt --all -- --check
-	env PATH=/usr/bin:/bin cargo clippy --workspace --all-targets --locked -- -D warnings
 	$(MAKE) test
 	bash -n scripts/*.sh
 	desktop-file-validate packaging/linux/io.github.chatgpt_work_linux.desktop
 	desktop-file-validate packaging/linux/chatgpt-work-linux.desktop
 	desktop-file-validate packaging/flatpak/io.github.chatgpt_work_linux.desktop
 	appstreamcli validate --pedantic --no-net packaging/linux/io.github.chatgpt_work_linux.metainfo.xml
-
-sbom:
-	mkdir -p dist
-	SOURCE_DATE_EPOCH=0 CARGO_NET_OFFLINE=true cargo cyclonedx --format json --spec-version 1.5 --override-filename chatgpt-work-linux.cdx --all --target x86_64-unknown-linux-gnu --quiet
-	bash scripts/normalize-sbom.sh chatgpt-work-linux.cdx.json '$(CURDIR)'
-	mv -f chatgpt-work-linux.cdx.json dist/chatgpt-work-linux.cdx.json
 
 refresh-upstream:
 	bash scripts/refresh-upstream-snapshot.sh
@@ -89,5 +80,4 @@ uninstall-user:
 	bash scripts/uninstall-user.sh
 
 clean:
-	env PATH=/usr/bin:/bin cargo clean
 	rm -rf -- dist packaging/arch/pkg packaging/arch/src

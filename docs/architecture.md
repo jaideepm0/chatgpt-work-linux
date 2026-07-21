@@ -7,9 +7,8 @@ The resource model and optimization order are specified in
 
 The production target is the real application plane from OpenAI's current
 unified ChatGPT desktop release, adapted locally to a Linux Electron runtime.
-The earlier Rust/GTK/WebKit public-web shell is retained only as historical
-source and tooling; it is not built, installed, or packaged by the default
-targets because it cannot provide the desktop Work product.
+The earlier Rust/GTK/WebKit public-web shell has been removed. It is not a
+fallback because it cannot provide the desktop Work product.
 
 The DMG and extracted application are ignored local inputs. The compatibility
 adapter is an external, commit-pinned checkout cached outside this repository.
