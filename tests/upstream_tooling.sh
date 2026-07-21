@@ -6,6 +6,7 @@ INSPECTOR="$REPO_DIR/scripts/inspect-upstream.py"
 FETCHER="$REPO_DIR/scripts/fetch-upstream.sh"
 CHECKER="$REPO_DIR/scripts/check-upstream.sh"
 REFRESHER="$REPO_DIR/scripts/refresh-upstream-snapshot.sh"
+ADAPTER_PREPARER="$REPO_DIR/scripts/prepare-compat-adapter.sh"
 OFFICIAL_URL="https://persistent.oaistatic.com/codex-app-prod/ChatGPT.dmg"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf -- "$TMP_DIR"' EXIT HUP INT TERM
@@ -631,6 +632,45 @@ cmp -s "$REVIEWED_SNAPSHOT" "$TMP_DIR/promoted.before-downgrade" || \
 # The orchestration command must never regain a trust-metadata refresh step.
 if rg -n '^[[:space:]]*make .*refresh-upstream|--allow-unreviewed' "$REPO_DIR/scripts/update-user.sh" >/dev/null; then
     fail "update-user can promote unreviewed upstream metadata"
+fi
+
+# The Linux adapter is transport only: resolve an exact commit and require a
+# reviewed deterministic archive digest. Mutable branches and modified caches
+# must never enter the ChatGPT DMG transformation.
+ADAPTER_REPO="$TMP_DIR/adapter-source"
+ADAPTER_CACHE="$TMP_DIR/adapter-cache"
+git init --quiet "$ADAPTER_REPO"
+git -C "$ADAPTER_REPO" config user.email fixture@example.invalid
+git -C "$ADAPTER_REPO" config user.name Fixture
+printf '%s\n' '#!/usr/bin/env bash' 'exit 0' >"$ADAPTER_REPO/install.sh"
+chmod 0755 "$ADAPTER_REPO/install.sh"
+git -C "$ADAPTER_REPO" add install.sh
+git -C "$ADAPTER_REPO" commit --quiet -m fixture
+adapter_commit=$(git -C "$ADAPTER_REPO" rev-parse HEAD)
+adapter_archive_sha=$(git -C "$ADAPTER_REPO" archive --format=tar "$adapter_commit" | sha256sum | awk '{print $1}')
+adapter_path=$(CHATGPT_WORK_COMPAT_REPO="$ADAPTER_REPO" \
+    CHATGPT_WORK_COMPAT_REF="$adapter_commit" \
+    CHATGPT_WORK_COMPAT_ARCHIVE_SHA256="$adapter_archive_sha" \
+    CHATGPT_WORK_COMPAT_CACHE="$ADAPTER_CACHE" \
+    "$ADAPTER_PREPARER")
+[[ $adapter_path == "$ADAPTER_CACHE/$adapter_commit" && -x $adapter_path/install.sh ]] ||
+    fail 'adapter preparer did not publish the exact fixture commit'
+[[ $(<"$adapter_path/.chatgpt-work-adapter-archive-sha256") == "$adapter_archive_sha" ]] ||
+    fail 'adapter cache did not retain reviewed archive provenance'
+if CHATGPT_WORK_COMPAT_REPO="$ADAPTER_REPO" \
+    CHATGPT_WORK_COMPAT_REF=main \
+    CHATGPT_WORK_COMPAT_ARCHIVE_SHA256="$adapter_archive_sha" \
+    CHATGPT_WORK_COMPAT_CACHE="$TMP_DIR/mutable-adapter-cache" \
+    "$ADAPTER_PREPARER" >/dev/null 2>&1; then
+    fail 'adapter preparer accepted a mutable branch'
+fi
+printf '%s\n' tampered >>"$adapter_path/install.sh"
+if CHATGPT_WORK_COMPAT_REPO="$ADAPTER_REPO" \
+    CHATGPT_WORK_COMPAT_REF="$adapter_commit" \
+    CHATGPT_WORK_COMPAT_ARCHIVE_SHA256="$adapter_archive_sha" \
+    CHATGPT_WORK_COMPAT_CACHE="$ADAPTER_CACHE" \
+    "$ADAPTER_PREPARER" >/dev/null 2>&1; then
+    fail 'adapter preparer accepted a modified immutable cache'
 fi
 
 git -C "$REPO_DIR" check-ignore -q ChatGPT.dmg || fail "ChatGPT.dmg is not gitignored"
