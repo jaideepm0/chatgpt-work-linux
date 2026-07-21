@@ -51,8 +51,12 @@ actual_sha256=$(sha256sum "$dmg" | awk '{print $1}')
 
 adapter_archive=$("$repo_root/scripts/prepare-compat-adapter.sh")
 adapter_commit=$(<"$adapter_archive/.chatgpt-work-adapter-commit")
+computer_use_archive=$("$repo_root/scripts/prepare-computer-use-linux.sh")
+computer_use_commit=$(<"$computer_use_archive/.chatgpt-work-computer-use-commit")
+computer_use_archive_sha256=$(<"$computer_use_archive/.chatgpt-work-computer-use-archive-sha256")
+computer_use_tree_sha256=$(<"$computer_use_archive/.chatgpt-work-computer-use-integrity")
 report_dir=${CHATGPT_WORK_REPORT_DIR:-"$repo_root/.work/reports/$version"}
-cargo_target_dir=${CHATGPT_WORK_CARGO_TARGET_DIR:-"${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/cargo/$adapter_commit"}
+cargo_target_dir=${CHATGPT_WORK_CARGO_TARGET_DIR:-"${XDG_CACHE_HOME:-$HOME/.cache}/chatgpt-work-linux/cargo/$adapter_commit-$computer_use_commit"}
 parent=$(dirname -- "$output")
 stage="$parent/.stage-$(basename -- "$output")-$$"
 adapter="$parent/.adapter-$adapter_commit-$$"
@@ -72,13 +76,21 @@ trap cleanup EXIT HUP INT TERM
 rm -rf -- "$stage" "$adapter"
 cp -a --reflink=auto -- "$adapter_archive" "$adapter"
 rm -f -- "$adapter/.chatgpt-work-adapter-integrity"
+rm -rf -- "$adapter/computer-use-linux"
+mkdir -m 0700 -- "$adapter/computer-use-linux"
+cp -a --reflink=auto -- "$computer_use_archive/." "$adapter/computer-use-linux/"
+rm -f -- \
+  "$adapter/computer-use-linux/.chatgpt-work-computer-use-archive-sha256" \
+  "$adapter/computer-use-linux/.chatgpt-work-computer-use-commit" \
+  "$adapter/computer-use-linux/.chatgpt-work-computer-use-integrity"
 mkdir -p -- "$cargo_target_dir"
 ln -s -- "$cargo_target_dir" "$adapter/target"
 python3 "$repo_root/scripts/patch-compat-adapter.py" "$adapter"
 python3 "$repo_root/scripts/patch-computer-use-wayland.py" \
   "$adapter/computer-use-linux/src/server.rs"
 
-printf 'Building ChatGPT Work %s with adapter %s...\n' "$version" "${adapter_commit:0:12}" >&2
+printf 'Building ChatGPT Work %s with adapter %s and private Computer Use %s...\n' \
+  "$version" "${adapter_commit:0:12}" "${computer_use_commit:0:12}" >&2
 CODEX_LINUX_ENABLE_COMPUTER_USE_UI=1 \
 CODEX_LINUX_FEATURES_CONFIG="$linux_features_config" \
 CODEX_APP_ID=io.github.chatgpt_work_linux \
@@ -95,13 +107,14 @@ CARGO_TARGET_DIR="$cargo_target_dir" \
 # identify the one allowlisted upstream asset rather than a staging pathname.
 # Preserve the adapter's source commit/dirty state for the later install gate.
 python3 - "$stage/.codex-linux/build-info.json" "$version" \
-  "$expected_sha256" "$expected_size" "$artifact_name" <<'PY'
+  "$expected_sha256" "$expected_size" "$artifact_name" \
+  "$computer_use_commit" "$computer_use_archive_sha256" "$computer_use_tree_sha256" <<'PY'
 import json
 from pathlib import Path
 import sys
 
 path = Path(sys.argv[1])
-version, digest, size, canonical_name = sys.argv[2:]
+version, digest, size, canonical_name, computer_use_commit, computer_use_archive, computer_use_tree = sys.argv[2:]
 value = json.loads(path.read_text(encoding="utf-8"))
 upstream = value.get("upstreamDmg")
 if not isinstance(upstream, dict):
@@ -115,6 +128,12 @@ for key, wanted in expected.items():
     if upstream.get(key) != wanted:
         raise SystemExit(f"build-work-app: adapter build metadata {key} differs from reviewed input")
 upstream["fileName"] = canonical_name
+value["computerUseSource"] = {
+    "commit": computer_use_commit,
+    "archiveSha256": computer_use_archive,
+    "treeSha256": computer_use_tree,
+    "privateLocalSource": True,
+}
 path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
 PY
 

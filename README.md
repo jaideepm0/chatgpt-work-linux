@@ -11,6 +11,11 @@ This repository does not contain or redistribute the DMG, extracted app, or
 the external compatibility adapter; users build locally from the official
 download.
 
+> [!WARNING]
+> Linux Computer Use is still under active work and is currently a private,
+> user-local preview. Its source and generated plugin are not published by this
+> repository, and it is not yet a supported release feature.
+
 ## What this build fixes
 
 - Runs the actual packaged desktop renderer from `app://`; it is not a
@@ -67,6 +72,7 @@ time.
 | SHA-256 | `ff459150991612007549270d2d28c5e78cec6bd6ac200a7ada5ed6c031369b87` |
 | Electron | `42.3.0` |
 | Adapter commit | `b24e5ff2cfabbd1a366f711229b3b115aa4397fe` |
+| Private Computer Use commit | `6d0b477d0bf92763184be33ae4fc9b5b9efacddf` (under work) |
 
 The downloader rejects non-HTTPS redirects, unexpected hosts, artifacts at or
 below 500 MiB, size drift, hash drift, and invalid DMGs. The complete observed
@@ -85,6 +91,8 @@ exact passed and blocked gates.
 - systemd user session, XDG Desktop Portal, PipeWire, and a desktop portal
   backend
 - build tools required by the pinned external Linux compatibility adapter
+- a clean private `../computer-use-linux` checkout at the reviewed commit for
+  the in-development local Computer Use preview
 - `curl`, Python 3, Node.js, Rust/Cargo, 7-Zip, `desktop-file-utils`, and
   `appstreamcli`
 
@@ -94,6 +102,10 @@ exact Git commit and reviewed archive hash. Normal builds never inspect or use
 adapter-development reviews may explicitly set `CHATGPT_WORK_COMPAT_REPO` to a
 clean local repository; the exact commit and archive hash gates still apply.
 The adapter is never copied into this repository.
+The private Computer Use checkout is archived locally with exact commit,
+archive, and extracted-tree hashes, then copied only into a disposable adapter
+during the build. Its source and generated plugin are not pushed by this
+repository.
 
 ## Build, verify, and install
 

@@ -36,6 +36,7 @@ profile-runtime-constrained: ensure-build
 		bash scripts/profile-runtime.sh ./.work/chatgpt-work-app/start.sh
 
 test:
+	bash tests/computer_use_source.sh
 	bash tests/upstream_tooling.sh
 	bash tests/update_transaction.sh
 	bash tests/electron_profile_migration.sh

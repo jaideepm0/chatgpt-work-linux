@@ -12,6 +12,10 @@ fallback because it cannot provide the desktop Work product.
 
 The DMG and extracted application are ignored local inputs. The compatibility
 adapter is an external, commit-pinned checkout cached outside this repository.
+The in-development Computer Use source is a separate private sibling checkout,
+also archived and verified by exact commit before it is copied into the
+disposable adapter. Only the locally built plugin binaries enter the generated
+application.
 Generated builds must remain visibly unofficial and must not be redistributed.
 
 ## Build flow
@@ -21,6 +25,9 @@ allowlisted official ChatGPT.dmg (>500 MiB, exact size and SHA-256)
         |
         v
 external adapter archived by exact clean Git commit
+        |
+        v
+private sibling Computer Use source archived by exact clean Git commit
         |
         v
 bounded extraction + deterministic required/optional patch report
@@ -61,7 +68,7 @@ release failure.
 
 On Wayland, pointer, literal-text, and keyboard actions use consented XDG
 Remote Desktop portal sessions. The build applies an exact, drift-detecting
-source patch to the external adapter: it disables uinput and `ydotool` on
+source assertion on the private Computer Use checkout: it disables uinput and `ydotool` on
 Wayland, removes environment overrides that could bypass portal selection, and
 rechecks targeted-window focus after portal setup immediately before input.
 Targeted KDE text uses portal keysyms instead of preparing the clipboard before

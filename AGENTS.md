@@ -31,6 +31,11 @@ entry visibly labeled as unofficial and not endorsed by OpenAI.
 - Keep the compatibility adapter external, clean, and pinned by exact Git
   commit. Cache an immutable archive by commit; do not vendor the adapter or
   silently follow a mutable branch during a build.
+- Keep the in-development Computer Use implementation in the private sibling
+  `../computer-use-linux` checkout. Archive its exact clean commit with reviewed
+  archive/tree digests, copy it only into the disposable build adapter, and
+  package only its locally built binaries. Do not publish that checkout,
+  archive, generated binaries, or plugin while it remains a private preview.
 - Every required transformation must be drift detecting and fail closed.
   Require exact or unique anchors, deterministic patch reports, final semantic
   assertions, native dependency checks, and staged validation before atomic
@@ -87,6 +92,8 @@ entry visibly labeled as unofficial and not endorsed by OpenAI.
   and an explicit full update transaction; never background polling.
 - `scripts/prepare-compat-adapter.sh`: clean commit-pinned external adapter
   cache.
+- `scripts/prepare-computer-use-linux.sh`: clean commit-pinned private sibling
+  source cache for the local Computer Use preview.
 - `scripts/build-work-app.sh`: production staging, hardening assertions, and
   atomic publication.
 - `scripts/patch-work-asar.py`: exact-size packaged-renderer compatibility
@@ -106,9 +113,9 @@ entry visibly labeled as unofficial and not endorsed by OpenAI.
 - `scripts/smoke-wayland.sh` / `scripts/profile-runtime.sh` /
   `tests/runtime_hardening.sh`: production runtime, performance, and generated
   launcher security gates.
-- `computer-use-linux/`: reviewed, source-controlled Linux Computer Use MCP
-  backend; keep its upstream provenance, license, lockfile, portal-only Wayland
-  policy, and focus-revalidation tests intact.
+- `../computer-use-linux/`: separately versioned private Linux Computer Use MCP
+  backend; keep its provenance, license, lockfile, portal-only Wayland policy,
+  and focus-revalidation tests intact.
 - `packaging/`: desktop/AppStream metadata and source-only packaging material;
   never include generated proprietary payloads.
 - `docs/`: architecture decisions, artifact/adapter audits, current snapshot,
