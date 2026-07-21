@@ -229,19 +229,18 @@ PY
 
 # One-time migration from the former mutable cache filename. Never overwrite or
 # delete it: an interrupted migration leaves the reviewed source recoverable.
-for legacy_artifact in "$CACHE_DIR/ChatGPT.dmg" "$CACHE_DIR/ChatGPT-work.dmg"; do
-    if [ "$ALLOW_UNREVIEWED" -eq 0 ] && [ ! -e "$OUTPUT" ] && [ -f "$legacy_artifact" ]; then
-        if inspect_to_metadata "$legacy_artifact" && candidate_matches_reviewed_snapshot; then
-            cp -a --reflink=auto -- "$legacy_artifact" "$MIGRATION_PART"
-            chmod 0400 "$MIGRATION_PART"
-            mv -- "$MIGRATION_PART" "$OUTPUT"
-            mv -f -- "$METADATA_PART" "$METADATA"
-            printf 'Migrated reviewed artifact into immutable cache: %s\n' "$OUTPUT" >&2
-            exit 0
-        fi
-        rm -f -- "$METADATA_PART"
+legacy_artifact="$CACHE_DIR/ChatGPT.dmg"
+if [ "$ALLOW_UNREVIEWED" -eq 0 ] && [ ! -e "$OUTPUT" ] && [ -f "$legacy_artifact" ]; then
+    if inspect_to_metadata "$legacy_artifact" && candidate_matches_reviewed_snapshot; then
+        cp -a --reflink=auto -- "$legacy_artifact" "$MIGRATION_PART"
+        chmod 0400 "$MIGRATION_PART"
+        mv -- "$MIGRATION_PART" "$OUTPUT"
+        mv -f -- "$METADATA_PART" "$METADATA"
+        printf 'Migrated reviewed artifact into immutable cache: %s\n' "$OUTPUT" >&2
+        exit 0
     fi
-done
+    rm -f -- "$METADATA_PART"
+fi
 
 if [ "$OFFLINE" -eq 1 ]; then
     [ -f "$OUTPUT" ] || die "offline DMG does not exist: $OUTPUT"

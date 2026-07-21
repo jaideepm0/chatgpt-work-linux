@@ -65,8 +65,9 @@ build.
 - Failed install leaves `current` and `previous` unchanged.
 - Interruption during rollback always leaves `current` pointing to a previously
   verified release; rerunning rollback repairs the secondary link if needed.
-- The former singleton `ChatGPT.dmg` or legacy `ChatGPT-work.dmg` cache is
-  migrated by verified reflink or copy and is not deleted automatically.
+- The former singleton `ChatGPT.dmg` cache is migrated by verified reflink or
+  copy only after exact review validation and is not deleted automatically.
+  Noncanonical artifact names are never accepted as upstream input.
 - Electron identity migration validates both cookie databases, excludes only
   regenerable caches, requires an idle profile, and retains a timestamped
   backup before any explicitly approved target replacement.
